@@ -1,0 +1,46 @@
+Method to inline:
+
+- Callee: autoflush (class: com.oracle.svm.core.log.RealLog)
+
+- Callee: coder (class: java.lang.String)
+
+- Callee: initialSizeEncoding (class: com.oracle.svm.core.code.CodeInfoDecoder)
+
+- Callee: indexGranularity (class: com.oracle.svm.core.code.CodeInfoDecoder)
+
+- Callee: safeToInt (class: org.graalvm.compiler.core.common.NumUtil)
+
+- Callee: extractFS (class: com.oracle.svm.core.code.CodeInfoDecoder)
+
+- Callee: offsetFS (class: com.oracle.svm.core.code.CodeInfoDecoder)
+
+- Callee: offsetIP (class: com.oracle.svm.core.code.CodeInfoDecoder)
+
+- Callee: readOffset (class: org.graalvm.compiler.core.common.util.UnsafeArrayTypeReader)
+
+- Callee: extractEX (class: com.oracle.svm.core.code.CodeInfoDecoder)
+
+- Callee: extractRM (class: com.oracle.svm.core.code.CodeInfoDecoder)
+ 
+- Callee: fromVMThread (class: com.oracle.svm.core.thread.JavaThreads)
+
+- Callee: getSourcePC (class: com.oracle.svm.core.deopt.DeoptimizedFrame)
+
+- Callee: getName (class: com.oracle.svm.core.thread.VMOperation)
+
+- Callee: <init> (class: java.lang.Throwable)
+
+- Callee: getGCImpl (class: com.oracle.svm.core.genscavenge.HeapImpl)
+
+- Callee: currentJavaThreadInitialized (class: com.oracle.svm.core.thread.JavaThreads)
+
+- Callee: open (class: com.oracle.svm.core.genscavenge.GCImpl$Timer)
+
+- Callee: initializeSyncQueue (class: java.util.concurrent.locks.AbstractQueuedSynchronizer)
+
+- Callee: currentJavaThreadInitialized (class: com.oracle.svm.core.thread.JavaThreads)
+
+- Callee: indexOf2ConsecutiveChars (class: org.graalvm.compiler.replacements.amd64.AMD64ArrayIndexOfNode)
+
+- Callee: indexOf (class: org.graalvm.compiler.replacements.amd64.AMD64ArrayIndexOfNode)
+
