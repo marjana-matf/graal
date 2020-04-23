@@ -199,40 +199,41 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
 
     @Override
     public InlineInfo shouldInlineInvoke(GraphBuilderContext b, ResolvedJavaMethod method, ValueNode[] args) {
+
         if (Snippets.class.isAssignableFrom(((AnalysisMethod) (b.getMethod())).getDeclaringClass().getJavaClass())) {
             /* We are not interfering with any snippet */
             // System.out.println(((AnalysisMethod) (b.getMethod())).getDeclaringClass().getJavaClass());
-            System.out.println("Snippet 1: " + method.getName() + ", " + b.getMethod().getName());
+            //System.out.println("Snippet 1: " + method.getName() + ", " + b.getMethod().getName());
             return null;
         }
 
         if (Snippets.class.isAssignableFrom(((AnalysisMethod)method).getDeclaringClass().getJavaClass())) {
             /* We are not interfering with any snippet */
             // System.out.println(((AnalysisMethod)method).getDeclaringClass().getJavaClass());
-            System.out.println("Snippet 2: " + method.getName() + ", " + b.getMethod().getName());
+            //System.out.println("Snippet 2: " + method.getName() + ", " + b.getMethod().getName());
             return null;
         }
 
         if(b.getMethod().getAnnotation(Snippet.class) != null ||
                 method.getAnnotation(Snippet.class) != null) {
-            System.out.println("Snippet: " + method.getName() + ", " + b.getMethod().getName());
+            //System.out.println("Snippet: " + method.getName() + ", " + b.getMethod().getName());
             return null;
         }
 
         if(b.getMethod().getAnnotation(SubstrateForeignCallTarget.class) != null ||
                 method.getAnnotation(SubstrateForeignCallTarget.class) != null) {
-            System.out.println("ForeignCall: " + method.getName() + ", " + b.getMethod().getName());
+            //System.out.println("ForeignCall: " + method.getName() + ", " + b.getMethod().getName());
             return null;
         }
 
         if(b.getMethod().getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
-            System.out.println("InternalVMMethod: " + method.getName());
+            //System.out.println("InternalVMMethod: " + method.getName());
             /* We are not interfering with any internal vmmethod */
             return null;
         }
 
         if(method.getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
-            System.out.println("InternalVMMethod: " + method.getName());
+            //System.out.println("InternalVMMethod: " + method.getName());
             /* We are not interfering with any internal vmmethod */
             return null;
 
@@ -298,18 +299,90 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
                 /* Method has an invocation plugin that we must not miss. */
                 newResult = InvocationResult.ANALYSIS_TOO_COMPLICATED;
             } else {
+
+                // filter some more method
+                // classes are detected from stack trace
+                if(method.format("%H").equals("java.lang.ThreadLocal") ||
+                        method.format("%H").equals("java.lang.ThreadLocal$ThreadLocalMap") ||
+                        method.format("%H").equals("java.lang.ref.Reference") ||
+                        method.format("%H").equals("java.lang.Throwable") ||
+                        method.format("%H").equals("java.lang.Exception") ||
+                        method.format("%H").equals("java.lang.RuntimeException") ||
+                        method.format("%H").equals("java.lang.String") ||
+                        method.format("%H").equals("java.lang.System") ||
+                        method.format("%H").equals("java.lang.StringUTF16") ||
+                        method.format("%H").equals("java.lang.ThreadGroup") ||
+                        method.format("%H").equals("java.lang.StringBuilder") ||
+                        method.format("%H").equals("java.lang.Character") ||
+                        method.format("%H").equals("java.lang.Class") ||
+                        method.format("%H").equals("java.lang.Number") ||
+                        method.format("%H").equals("java.lang.StackTraceElement") ||
+                        method.format("%H").equals("java.lang.IllegalArgumentException") ||
+                        method.format("%H").equals("java.lang.reflect.AccessibleObject") ||
+                        method.format("%H").equals("java.math.BigInteger") ||
+                        method.format("%H").equals("java.math.MutableBigInteger") ||
+                        method.format("%H").equals("java.security.AccessControlContext") ||
+                        method.format("%H").equals("java.nio.charset.CoderResult") ||
+                        method.format("%H").equals("java.util.HashMap") ||
+                        method.format("%H").equals("java.util.HashMap$TreeNode") ||
+                        method.format("%H").equals("java.util.regex.Pattern") ||
+                        method.format("%H").equals("java.util.regex.Pattern$BitClass") ||
+                        method.format("%H").equals("java.util.Calendar") ||
+                        method.format("%H").equals("java.util.regex.CharPredicates") ||
+                        method.format("%H").equals("java.util.Formatter") ||
+                        method.format("%H").equals("java.util.Formatter$FormatSpecifier") ||
+                        method.format("%H").equals("java.util.SplittableRandom") ||
+                        method.format("%H").equals("java.util.TreeMap") ||
+                        method.format("%H").equals("java.util.Arrays") ||
+                        method.format("%H").equals("java.util.ResourceBundle") ||
+                        method.format("%H").equals("java.util.regex.Pattern$Curly") ||
+                        method.format("%H").equals("java.util.regex.Pattern$GroupCurly") ||
+                        method.format("%H").equals("java.util.concurrent.atomic.AtomicReference") ||
+                        method.format("%H").equals("java.util.concurrent.locks.AbstractQueuedSynchronizer$Node") ||
+                        method.format("%H").equals("java.util.concurrent.locks.AbstractQueuedSynchronizer") ||
+                        method.format("%H").equals("java.util.concurrent.ConcurrentHashMap$TreeNode") ||
+                        method.format("%H").equals("java.util.concurrent.ForkJoinTask") ||
+                        method.format("%H").equals("java.util.concurrent.ForkJoinPool$WorkQueue") ||
+                        method.format("%H").equals("java.util.concurrent.ForkJoinPool") ||
+                        method.format("%H").equals("java.text.SimpleDateFormat") ||
+                        method.format("%H").equals("java.time.temporal.TemporalAdjusters") ||
+                        method.format("%H").equals("java.util.concurrent.CountedCompleter") ||
+                        method.format("%H").equals("java.util.stream.ForEachOps$ForEachOrderedTask") ||
+                        method.format("%H").equals("jdk.internal.math.FDBigInteger") ||
+                        method.format("%H").equals("jdk.vm.ci.meta.MetaUtil") ||
+                        method.format("%H").equals("com.oracle.svm.core.jdk.UnsupportedFeatureError") ||
+                        method.format("%H").equals("com.oracle.svm.core.option.SubstrateOptionsParser") ||
+                        method.format("%H").equals("com.oracle.svm.core.jdk.SplittableRandomAccessors") ||
+                        method.format("%H").equals("com.oracle.svm.core.option.RuntimeOptionParser") ||
+                        method.format("%H").equals("com.oracle.svm.core.genscavenge.GCImpl") ||
+                        method.format("%H").equals("com.oracle.svm.jni.functions.JNIInvocationInterface$Support") ||
+                        method.format("%H").equals("com.oracle.svm.jni.access.JNIAccessibleMethodDescriptor") ||
+                        method.format("%H").equals("com.oracle.svm.jni.access.JNIReflectionDictionary") ||
+                        method.format("%H").equals("com.oracle.svm.jni.JNIThreadLocalPinnedObjects") ||
+                        method.format("%H").equals("com.oracle.svm.core.hub.ClassInitializationInfo") ||
+                        method.format("%H").equals("org.graalvm.collections.EconomicMapImpl") ||
+                        method.format("%H").equals("sun.util.resources.BreakIteratorResourceBundle") ||
+                        method.format("%H").equals("sun.util.resources.LocaleData") ||
+                        method.format("%H").equals("sun.util.locale.provider.TimeZoneNameUtility") ||
+                        method.format("%H").equals("sun.util.locale.provider.TimeZoneNameUtility$TimeZoneNameGetter") ||
+                        method.format("%H").equals("sun.util.locale.provider.DateFormatProviderImpl") ) {
+
+                    return null;
+                }
+
                 /* try to detect simple methods for inline */
+                System.out.println("Method to analyze: " + method.format("%n, %H"));
                 newResult = analyzeMethod(b, (AnalysisMethod) method, callSite);
                 if(newResult instanceof InvocationResultInline){
                     if(((SharedBytecodeParser) b).inlineDuringParsingState != null){
                         InvocationResultInline inlineState = (InvocationResultInline) newResult;
                         ((SharedBytecodeParser) b).inlineDuringParsingState.children.put(inlineState.site, inlineState);
                         System.out.println("Method to inline: " + method.getName());
-                        return InlineInfo.createStandardInlineInfo(method);
+                        return null; // InlineInfo.createStandardInlineInfo(method);
                     }
                 }
-
             }
+
             // InvocationResult existingResult = data.putIfAbsent(b.getMethod(), b.bci(), newResult);
             inline = newResult;
         }
@@ -317,7 +390,7 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
             InvocationResultInline inlineData = (InvocationResultInline) inline;
             ((SharedBytecodeParser) b).inlineDuringParsingState = inlineData;
             System.out.println("Method to inline: " + method.getName());
-            return InlineInfo.createStandardInlineInfo(method);
+            return null;
         }
         else
             return null;
@@ -345,41 +418,42 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
         boolean hasStoreField = false;
 
         for (Node node : graph.getNodes()) {
-            System.out.print(node.toString());
+            // System.out.print(node.toString());
             if (node instanceof LoadFieldNode) {
                 hasLoadField = true;
-                System.out.print(" - node represents a read of a static or instance field.");
+               // System.out.print(" - node represents a read of a static or instance field.");
             }
             if (node instanceof StoreFieldNode) {
                 hasStoreField = true;
-                System.out.print(" - node represents a write to a static or instance field.");
+               // System.out.print(" - node represents a write to a static or instance field.");
             }
-            if (node instanceof ParameterNode)
+            /*if (node instanceof ParameterNode)
                 System.out.print(  " - node represents a placeholder for an incoming argument to a function call.");
             if (node instanceof ConstantNode)
                 System.out.print(" - node represents a constant");
+            */
             if (node instanceof FrameState) {
                 countFrameStates++;
                 frameState = (FrameState) node;
-                System.out.println(" - " + frameState.toString(Verbosity.All));
+               // System.out.println(" - " + frameState.toString(Verbosity.All));
             }
             if(node instanceof ForeignCallNode) {
-                System.out.println(" - foreign call " + node.toString(Verbosity.All));
+                // System.out.println(" - foreign call " + node.toString(Verbosity.All));
                 return InvocationResult.ANALYSIS_TOO_COMPLICATED;
             }
-            System.out.println(" ");
+            // System.out.println(" ");
         }
 
         if (countFrameStates == 0)
-            return InvocationResult.ANALYSIS_TOO_COMPLICATED;
+            return new InvocationResultInline(callSite, method);
 
         if (countFrameStates == 1 && frameState.stackSize() == 0)
-            return InvocationResult.ANALYSIS_TOO_COMPLICATED;
+            return new InvocationResultInline(callSite, method);
 
         /* last frame state with stack size zero */
         if (frameState.stackSize() == 0) {
             if(hasStoreField || hasLoadField)
-                return InvocationResult.ANALYSIS_TOO_COMPLICATED;
+                return new InvocationResultInline(callSite, method);
         }
 
         return InvocationResult.ANALYSIS_TOO_COMPLICATED;
