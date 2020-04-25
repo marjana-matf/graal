@@ -58,6 +58,7 @@ import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import org.graalvm.compiler.nodes.graphbuilderconf.InlineInvokePlugin;
 import org.graalvm.compiler.nodes.graphbuilderconf.IntrinsicContext;
+import org.graalvm.compiler.nodes.graphbuilderconf.NodePlugin;
 import org.graalvm.compiler.nodes.java.LoadFieldNode;
 import org.graalvm.compiler.nodes.java.StoreFieldNode;
 import org.graalvm.compiler.options.Option;
@@ -299,81 +300,16 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
                 /* Method has an invocation plugin that we must not miss. */
                 newResult = InvocationResult.ANALYSIS_TOO_COMPLICATED;
             } else {
-                // filter some more method
-                // classes are detected from stack traceN
-                if( method.format("%H").equals("com.oracle.svm.core.genscavenge.GCImpl") ||
-                        method.format("%H").equals("com.oracle.svm.core.hub.ClassInitializationInfo") ||
-                        method.format("%H").equals("com.oracle.svm.core.jdk.SplittableRandomAccessors") ||
-                        method.format("%H").equals("com.oracle.svm.core.jdk.UnsupportedFeatureError") ||
-                        method.format("%H").equals("com.oracle.svm.core.option.RuntimeOptionParser") ||
-                        method.format("%H").equals("com.oracle.svm.core.option.SubstrateOptionsParser") ||
-                        method.format("%H").equals("com.oracle.svm.jni.access.JNIAccessibleMethodDescriptor") ||
-                        method.format("%H").equals("com.oracle.svm.jni.access.JNIReflectionDictionary") ||
-                        method.format("%H").equals("com.oracle.svm.jni.functions.JNIInvocationInterface$Support") ||
-                        method.format("%H").equals("com.oracle.svm.jni.JNIThreadLocalPinnedObjects") ||
-                        method.format("%H").equals("java.lang.Character") ||
-                        method.format("%H").equals("java.lang.Class") ||
-                        method.format("%H").equals("java.lang.Exception") ||
-                        method.format("%H").equals("java.lang.IllegalArgumentException") ||
-                        method.format("%H").equals("java.lang.Number") ||
-                        method.format("%H").equals("java.lang.reflect.AccessibleObject") ||
-                        method.format("%H").equals("java.lang.ref.Reference") ||
-                        method.format("%H").equals("java.lang.RuntimeException") ||
-                        method.format("%H").equals("java.lang.StackTraceElement") ||
-                        method.format("%H").equals("java.lang.String") ||
-                        method.format("%H").equals("java.lang.StringBuilder") ||
-                        method.format("%H").equals("java.lang.StringUTF16") ||
-                        method.format("%H").equals("java.lang.System") ||
-                        method.format("%H").equals("java.lang.ThreadGroup") ||
-                        method.format("%H").equals("java.lang.ThreadLocal") ||
-                        method.format("%H").equals("java.lang.ThreadLocal$ThreadLocalMap") ||
-                        method.format("%H").equals("java.lang.Throwable") ||
-                        method.format("%H").equals("java.math.BigInteger") ||
-                        method.format("%H").equals("java.math.MutableBigInteger") ||
-                        method.format("%H").equals("java.nio.charset.CoderResult") ||
-                        method.format("%H").equals("java.security.AccessControlContext") ||
-                        method.format("%H").equals("java.text.SimpleDateFormat") ||
-                        method.format("%H").equals("java.time.temporal.TemporalAdjusters") ||
-                        method.format("%H").equals("java.util.Arrays") ||
-                        method.format("%H").equals("java.util.Calendar") ||
-                        method.format("%H").equals("java.util.concurrent.atomic.AtomicReference") ||
-                        method.format("%H").equals("java.util.concurrent.ConcurrentHashMap$TreeNode") ||
-                        method.format("%H").equals("java.util.concurrent.CountedCompleter") ||
-                        method.format("%H").equals("java.util.concurrent.ForkJoinPool") ||
-                        method.format("%H").equals("java.util.concurrent.ForkJoinPool$WorkQueue") ||
-                        method.format("%H").equals("java.util.concurrent.ForkJoinTask") ||
-                        method.format("%H").equals("java.util.concurrent.locks.AbstractQueuedSynchronizer") ||
-                        method.format("%H").equals("java.util.concurrent.locks.AbstractQueuedSynchronizer$Node") ||
-                        method.format("%H").equals("java.util.Formatter") ||
-                        method.format("%H").equals("java.util.Formatter$FormatSpecifier") ||
-                        method.format("%H").equals("java.util.HashMap") ||
-                        method.format("%H").equals("java.util.HashMap$TreeNode") ||
-                        method.format("%H").equals("java.util.regex.CharPredicates") ||
-                        method.format("%H").equals("java.util.regex.Pattern") ||
-                        method.format("%H").equals("java.util.regex.Pattern$BitClass") ||
-                        method.format("%H").equals("java.util.regex.Pattern$Curly") ||
-                        method.format("%H").equals("java.util.regex.Pattern$GroupCurly") ||
-                        method.format("%H").equals("java.util.ResourceBundle") ||
-                        method.format("%H").equals("java.util.SplittableRandom") ||
-                        method.format("%H").equals("java.util.stream.ForEachOps$ForEachOrderedTask") ||
-                        method.format("%H").equals("java.util.TreeMap") ||
-                        method.format("%H").equals("jdk.internal.math.FDBigInteger") ||
-                        method.format("%H").equals("jdk.vm.ci.meta.MetaUtil") ||
-                        method.format("%H").equals("org.graalvm.collections.EconomicMapImpl") ||
-                        method.format("%H").equals("sun.util.locale.provider.DateFormatProviderImpl") ||
-                        method.format("%H").equals("sun.util.locale.provider.TimeZoneNameUtility") ||
-                        method.format("%H").equals("sun.util.locale.provider.TimeZoneNameUtility$TimeZoneNameGetter") ||
-                        method.format("%H").equals("sun.util.resources.BreakIteratorResourceBundle") ||
-                        method.format("%H").equals("sun.util.resources.LocaleData")) {
 
+                if(method.format("%H").equals("com.oracle.svm.jni.JNIThreadLocalPinnedObjects")) {
+                    System.out.println("FILTER " + method.format("%n, %H "));
                     return null;
                 }
 
-                /* try to detect simple methods for inline */
-               // System.out.println("Method to analyze: " + method.format("%n, %H"));
                 newResult = analyzeMethod(b, (AnalysisMethod) method, callSite);
-                if(newResult instanceof InvocationResultInline){
-                    if(((SharedBytecodeParser) b).inlineDuringParsingState != null){
+                System.out.println("End analyze " + method.format("%n, %H ") + newResult.toString());
+                if (newResult instanceof InvocationResultInline) {
+                    if (((SharedBytecodeParser) b).inlineDuringParsingState != null) {
                         InvocationResultInline inlineState = (InvocationResultInline) newResult;
                         ((SharedBytecodeParser) b).inlineDuringParsingState.children.put(inlineState.site, inlineState);
                         System.out.println("Method to inline*: " + method.format("%n, %H"));
@@ -401,15 +337,32 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
         int nodeCountCaller = b.getGraph().getNodeCount();
         // get graph for callee
         StructuredGraph graph = new StructuredGraph.Builder(b.getOptions(), b.getDebug()).method(method).build();
-        AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(providers, ((SharedBytecodeParser) b).getGraphBuilderConfig(), OptimisticOptimizations.NONE, null, providers.getWordTypes());
+        GraphBuilderConfiguration graphConfig = ((SharedBytecodeParser) b).getGraphBuilderConfig().copy();
+
+        graphConfig.getPlugins().clearParameterPlugin();
+
+        graphConfig.getPlugins().clearInlineInvokePlugins();
+        for (InlineInvokePlugin inlineInvokePlugin : ((SharedBytecodeParser) b).getGraphBuilderConfig().getPlugins().getInlineInvokePlugins()) {
+            if (!(inlineInvokePlugin instanceof NativeImageInlineDuringParsingPlugin)) {
+                graphConfig.getPlugins().appendInlineInvokePlugin(inlineInvokePlugin);
+            }
+        }
+
+        graphConfig.getPlugins().clearNodePlugin();
+        for(NodePlugin plugin:((SharedBytecodeParser) b).getGraphBuilderConfig().getPlugins().getNodePlugins()) {
+            if (!(plugin instanceof IntrinsifyMethodHandlesInvocationPlugin))
+                graphConfig.getPlugins().appendNodePlugin(plugin);
+        }
+
+        AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(providers, graphConfig, OptimisticOptimizations.NONE, null, providers.getWordTypes());
         graphbuilder.apply(graph);
         int nodeCountCallee = graph.getNodeCount();
 
-     /*   System.out.println("\nbuild structured graph: " + b.getMethod().format("Caller: %n (class: %H), par: %p, ")
+        /* System.out.println("\nbuild structured graph: " + b.getMethod().format("Caller: %n (class: %H), par: %p, ")
                 + "node count: " + nodeCountCaller
                 + method.format("\nCallee: %n (class: %H), par: %p, ")
                 + "node count: " + nodeCountCallee);
-*/
+        */
         int countFrameStates = 0;
         FrameState frameState = null;
         int countForeignCall = 0;
