@@ -192,6 +192,8 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
 
     private final boolean analysis;
     private final HostedProviders providers;
+    private final InvocationData invocationData = new InvocationData();
+    private static final Object NULL_MARKER = new Object();
 
     public NativeImageInlineDuringParsingPlugin(boolean analysis, HostedProviders providers) {
         this.analysis = analysis;
@@ -200,7 +202,6 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
 
     @Override
     public InlineInfo shouldInlineInvoke(GraphBuilderContext b, ResolvedJavaMethod method, ValueNode[] args) {
-
         if (Snippets.class.isAssignableFrom(((AnalysisMethod) (b.getMethod())).getDeclaringClass().getJavaClass())) {
             /* We are not interfering with any snippet */
             // System.out.println(((AnalysisMethod) (b.getMethod())).getDeclaringClass().getJavaClass());
@@ -208,44 +209,37 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
             return null;
         }
 
-        if (Snippets.class.isAssignableFrom(((AnalysisMethod)method).getDeclaringClass().getJavaClass())) {
+        if (Snippets.class.isAssignableFrom(((AnalysisMethod) method).getDeclaringClass().getJavaClass())) {
             /* We are not interfering with any snippet */
             // System.out.println(((AnalysisMethod)method).getDeclaringClass().getJavaClass());
             //System.out.println("Snippet 2: " + method.getName() + ", " + b.getMethod().getName());
             return null;
         }
 
-        if(b.getMethod().getAnnotation(Snippet.class) != null ||
+        if (b.getMethod().getAnnotation(Snippet.class) != null ||
                 method.getAnnotation(Snippet.class) != null) {
             //System.out.println("Snippet: " + method.getName() + ", " + b.getMethod().getName());
             return null;
         }
 
-        if(b.getMethod().getAnnotation(SubstrateForeignCallTarget.class) != null ||
+        if (b.getMethod().getAnnotation(SubstrateForeignCallTarget.class) != null ||
                 method.getAnnotation(SubstrateForeignCallTarget.class) != null) {
             //System.out.println("ForeignCall: " + method.getName() + ", " + b.getMethod().getName());
             return null;
         }
 
-        if(b.getMethod().getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
+        if (b.getMethod().getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
             //System.out.println("InternalVMMethod: " + method.getName());
             /* We are not interfering with any internal vmmethod */
             return null;
         }
 
-        if(method.getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
+        if (method.getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
             //System.out.println("InternalVMMethod: " + method.getName());
             /* We are not interfering with any internal vmmethod */
             return null;
 
         }
-
-        /*
-        InvocationData data = ((SharedBytecodeParser) b).inlineInvocationData;
-        if (data == null) {
-            throw VMError.shouldNotReachHere("must not use SubstrateInlineDuringParsingPlugin when bytecode parser does not have InvocationData");
-        }
-        */
 
         if (b.parsingIntrinsic()) {
             /* We are not interfering with any intrinsic method handling. */
@@ -300,41 +294,31 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
                 /* Method has an invocation plugin that we must not miss. */
                 newResult = InvocationResult.ANALYSIS_TOO_COMPLICATED;
             } else {
-
-                if(method.format("%H").equals("com.oracle.svm.jni.JNIThreadLocalPinnedObjects")) {
-                    System.out.println("FILTER " + method.format("%n, %H "));
-                    return null;
-                }
-
                 newResult = analyzeMethod(b, (AnalysisMethod) method, callSite);
-                System.out.println("End analyze " + method.format("%n, %H ") + newResult.toString());
                 if (newResult instanceof InvocationResultInline) {
-                    if (((SharedBytecodeParser) b).inlineDuringParsingState != null) {
-                        InvocationResultInline inlineState = (InvocationResultInline) newResult;
-                        ((SharedBytecodeParser) b).inlineDuringParsingState.children.put(inlineState.site, inlineState);
-                        System.out.println("Method to inline*: " + method.format("%n, %H"));
-                        return null; // InlineInfo.createStandardInlineInfo(method);
+                    InvocationResultInline inlineData = (InvocationResultInline) newResult;
+                    if (((SharedBytecodeParser) b).inlineDuringParsingState == null) {
+                        ((SharedBytecodeParser) b).inlineDuringParsingState = inlineData;
+                    } else {
+                        Object nonNullElement = inlineData != null ? inlineData : NULL_MARKER;
+                        Object previous = ((SharedBytecodeParser) b).inlineDuringParsingState.children.putIfAbsent(inlineData.site, inlineData);
+                        VMError.guarantee(previous == null || previous.equals(nonNullElement), "Newly inlined element (" + nonNullElement + ") different than the previous (" + previous + ")");
                     }
                 }
             }
-
-            // InvocationResult existingResult = data.putIfAbsent(b.getMethod(), b.bci(), newResult);
+            InvocationResult existingResult = invocationData.putIfAbsent(b.getMethod(), b.bci(), newResult);
+            VMError.guarantee(existingResult == null || existingResult.equals(newResult), "Newly inlined element (" + newResult + ") different than the previous (" + existingResult + ")");
             inline = newResult;
         }
         if (inline instanceof InvocationResultInline) {
-            InvocationResultInline inlineData = (InvocationResultInline) inline;
-            ((SharedBytecodeParser) b).inlineDuringParsingState = inlineData;
-            System.out.println("Method to inline**: " + method.format("%n, %H"));
-            return null; // InlineInfo.createStandardInlineInfo(method);
-        }
-        else
+            System.out.println("Method to inline: " + method.format("%n, %H") + b.getMethod().format(", caller: %n, %H"));
+            return null; //return InlineInfo.createStandardInlineInfo(method);
+        } else {
             return null;
+        }
     }
 
     InvocationResult analyzeMethod(GraphBuilderContext b, AnalysisMethod method, CallSite callSite) {
-        // build graph for method and analyze
-        // b has info for caller
-        int nodeCountCaller = b.getGraph().getNodeCount();
         // get graph for callee
         StructuredGraph graph = new StructuredGraph.Builder(b.getOptions(), b.getDebug()).method(method).build();
         GraphBuilderConfiguration graphConfig = ((SharedBytecodeParser) b).getGraphBuilderConfig().copy();
@@ -348,82 +332,46 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
             }
         }
 
-        graphConfig.getPlugins().clearNodePlugin();
-        for(NodePlugin plugin:((SharedBytecodeParser) b).getGraphBuilderConfig().getPlugins().getNodePlugins()) {
-            if (!(plugin instanceof IntrinsifyMethodHandlesInvocationPlugin))
-                graphConfig.getPlugins().appendNodePlugin(plugin);
-        }
-
         AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(providers, graphConfig, OptimisticOptimizations.NONE, null, providers.getWordTypes());
         graphbuilder.apply(graph);
-        int nodeCountCallee = graph.getNodeCount();
 
         /* System.out.println("\nbuild structured graph: " + b.getMethod().format("Caller: %n (class: %H), par: %p, ")
-                + "node count: " + nodeCountCaller
-                + method.format("\nCallee: %n (class: %H), par: %p, ")
-                + "node count: " + nodeCountCallee);
+                + method.format("\nCallee: %n (class: %H), par: %p, "));
         */
         int countFrameStates = 0;
         FrameState frameState = null;
-        int countForeignCall = 0;
         boolean hasLoadField = false;
         boolean hasStoreField = false;
 
         for (Node node : graph.getNodes()) {
-            // System.out.print(node.toString());
             if (node instanceof LoadFieldNode) {
                 hasLoadField = true;
-               // System.out.print(" - node represents a read of a static or instance field.");
             }
             if (node instanceof StoreFieldNode) {
                 hasStoreField = true;
-               // System.out.print(" - node represents a write to a static or instance field.");
             }
-            /*if (node instanceof ParameterNode)
-                System.out.print(  " - node represents a placeholder for an incoming argument to a function call.");
-            if (node instanceof ConstantNode)
-                System.out.print(" - node represents a constant");
-            */
             if (node instanceof FrameState) {
                 countFrameStates++;
                 frameState = (FrameState) node;
-               // System.out.println(" - " + frameState.toString(Verbosity.All));
             }
-            if(node instanceof ForeignCallNode) {
-                // System.out.println(" - foreign call " + node.toString(Verbosity.All));
+            if (node instanceof ForeignCallNode) {
                 return InvocationResult.ANALYSIS_TOO_COMPLICATED;
             }
-            // System.out.println(" ");
         }
 
-        if (countFrameStates == 0)
+        if (countFrameStates == 0) {
             return new InvocationResultInline(callSite, method);
-
-        if (countFrameStates == 1 && frameState.stackSize() == 0)
+        }
+        if (countFrameStates == 1 && frameState.stackSize() == 0) {
             return new InvocationResultInline(callSite, method);
-
+        }
         /* last frame state with stack size zero */
         if (frameState.stackSize() == 0) {
-            if(hasStoreField || hasLoadField)
+            if (hasStoreField || hasLoadField) {
                 return new InvocationResultInline(callSite, method);
+            }
         }
-
         return InvocationResult.ANALYSIS_TOO_COMPLICATED;
-    }
-
-    @Override
-    public void notifyAfterInline(ResolvedJavaMethod methodToInline) {
-
-    }
-
-    @Override
-    public void notifyBeforeInline(ResolvedJavaMethod methodToInline) {
-
-    }
-
-    @Override
-    public void notifyNotInlined(GraphBuilderContext b, ResolvedJavaMethod method, Invoke invoke) {
-
     }
 
     static AnalysisMethod toAnalysisMethod(ResolvedJavaMethod method) {
