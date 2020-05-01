@@ -312,7 +312,7 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
         }
         if (inline instanceof InvocationResultInline) {
             System.out.println("Method to inline: " + method.format("%n, %H") + b.getMethod().format(", caller: %n, %H"));
-            return null; //return InlineInfo.createStandardInlineInfo(method);
+            return InlineInfo.createStandardInlineInfo(method);
         } else {
             return null;
         }
