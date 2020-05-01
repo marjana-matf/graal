@@ -118,6 +118,7 @@ public abstract class SharedGraphBuilderPhase extends GraphBuilderPhase.Instance
         protected JavaMethod lookupMethodInPool(int cpi, int opcode) {
             JavaMethod result = super.lookupMethodInPool(cpi, opcode);
             if (result == null) {
+                // detected null result for method zapValuesToLog
                 throw VMError.shouldNotReachHere("Discovered an unresolved calee while parsing " + method.asStackTraceElement(bci()) + '.');
             }
             return result;
