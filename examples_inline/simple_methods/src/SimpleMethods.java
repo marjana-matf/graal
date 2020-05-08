@@ -24,6 +24,10 @@ public class SimpleMethods {
         return sum;
     }
 
+    public int callAverage(){
+        return getAverage();
+    }
+
     public static int two(){
         return 2;
     }
@@ -57,10 +61,11 @@ public class SimpleMethods {
         two();
         SimpleMethods.number = 2;
         getNumber();
-        System.out.println(obj.getAverage());
+        System.out.println(obj.callAverage());
         empty();
         double sum = SimpleMethods.sumOfTwo(10,10.1);
         System.out.println(sum);
+        obj.setY(obj.getY()+30);
         System.out.println(SimpleMethods.sumOfTen(1,2,3,4,5,6,7,8,9,10));
         System.out.println(SimpleMethods.sumOfTenWithLocal(1,2,3,4,5,6,7,8,9,10));
     }

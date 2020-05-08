@@ -2240,7 +2240,6 @@ public class BytecodeParser implements GraphBuilderContext {
                 return null;
             }
         }
-
         for (InlineInvokePlugin plugin : graphBuilderConfig.getPlugins().getInlineInvokePlugins()) {
             InlineInfo inlineInfo = plugin.shouldInlineInvoke(this, targetMethod, args);
             if (inlineInfo != null) {

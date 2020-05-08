@@ -360,7 +360,11 @@ public final class HeapImpl extends Heap {
             // @formatter:off
             if (HeapPolicy.getZapProducedHeapChunks()) {
                 log.string("  producedHeapChunkZapInt: ")
-                                .string("  hex: ").spaces(8).hex(HeapPolicy.getProducedHeapChunkZapInt())
+                                .string("  hex: ")
+                                .spaces(8)
+                                .hex(
+                                        HeapPolicy.getProducedHeapChunkZapInt()
+                                )
                                 .string("  signed: ").spaces(9).signed(HeapPolicy.getProducedHeapChunkZapInt())
                                 .string("  unsigned: ").spaces(10).unsigned(HeapPolicy.getProducedHeapChunkZapInt()).newline();
                 log.string("  producedHeapChunkZapWord:")

@@ -24,6 +24,7 @@
  */
 package com.oracle.svm.hosted.phases;
 
+import com.oracle.graal.pointsto.BigBang;
 import org.graalvm.compiler.api.replacements.Fold;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.java.BytecodeParser;
@@ -46,20 +47,27 @@ import jdk.vm.ci.meta.ResolvedJavaMethod;
 
 public class AnalysisGraphBuilderPhase extends SharedGraphBuilderPhase {
 
-    public AnalysisGraphBuilderPhase(Providers providers,
-                    GraphBuilderConfiguration graphBuilderConfig, OptimisticOptimizations optimisticOpts, IntrinsicContext initialIntrinsicContext, WordTypes wordTypes) {
+    protected final BigBang bb;
+
+    public AnalysisGraphBuilderPhase(BigBang bb, Providers providers,
+                                     GraphBuilderConfiguration graphBuilderConfig, OptimisticOptimizations optimisticOpts, IntrinsicContext initialIntrinsicContext, WordTypes wordTypes) {
         super(providers, graphBuilderConfig, optimisticOpts, initialIntrinsicContext, wordTypes);
+        this.bb = bb;
     }
 
     @Override
     protected BytecodeParser createBytecodeParser(StructuredGraph graph, BytecodeParser parent, ResolvedJavaMethod method, int entryBCI, IntrinsicContext intrinsicContext) {
-        return new AnalysisBytecodeParser(this, graph, parent, method, entryBCI, intrinsicContext);
+        return new AnalysisBytecodeParser(bb, this, graph, parent, method, entryBCI, intrinsicContext);
     }
 
     public static class AnalysisBytecodeParser extends SharedBytecodeParser {
-        protected AnalysisBytecodeParser(GraphBuilderPhase.Instance graphBuilderInstance, StructuredGraph graph, BytecodeParser parent, ResolvedJavaMethod method, int entryBCI,
-                        IntrinsicContext intrinsicContext) {
+
+        protected final BigBang bb;
+
+        protected AnalysisBytecodeParser(BigBang bb, GraphBuilderPhase.Instance graphBuilderInstance, StructuredGraph graph, BytecodeParser parent, ResolvedJavaMethod method, int entryBCI,
+                                         IntrinsicContext intrinsicContext) {
             super(graphBuilderInstance, graph, parent, method, entryBCI, intrinsicContext, true);
+            this.bb = bb;
         }
 
         @Override

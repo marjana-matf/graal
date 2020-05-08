@@ -25,18 +25,14 @@
  */
 package com.oracle.svm.hosted.phases;
 
-import com.oracle.graal.pointsto.BigBang;
-import com.oracle.graal.pointsto.infrastructure.GraphProvider;
 import com.oracle.graal.pointsto.meta.AnalysisMethod;
 import com.oracle.graal.pointsto.meta.AnalysisType;
 import com.oracle.graal.pointsto.meta.HostedProviders;
 import com.oracle.graal.pointsto.util.CompletionExecutor.DebugContextRunnable;
-import com.oracle.svm.core.SubstrateOptions;
 import com.oracle.svm.core.annotate.NeverInline;
 import com.oracle.svm.core.annotate.NeverInlineTrivial;
 import com.oracle.svm.core.annotate.RestrictHeapAccess;
 import com.oracle.svm.core.annotate.Uninterruptible;
-import com.oracle.svm.core.graal.jdk.ArraycopySnippets;
 import com.oracle.svm.core.jdk.InternalVMMethod;
 import com.oracle.svm.core.option.HostedOptionKey;
 import com.oracle.svm.core.snippets.SubstrateForeignCallTarget;
@@ -46,34 +42,27 @@ import com.oracle.svm.hosted.phases.AnalysisGraphBuilderPhase.AnalysisBytecodePa
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import org.graalvm.compiler.api.replacements.Snippet;
 import org.graalvm.compiler.debug.DebugContext;
-import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.graph.Node;
-import org.graalvm.compiler.java.BytecodeParser;
-import org.graalvm.compiler.java.GraphBuilderPhase;
-import org.graalvm.compiler.nodeinfo.Verbosity;
-import org.graalvm.compiler.nodes.*;
-import org.graalvm.compiler.nodes.cfg.ControlFlowGraph;
+import org.graalvm.compiler.nodes.FrameState;
+import org.graalvm.compiler.nodes.StructuredGraph;
+import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.extended.ForeignCallNode;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import org.graalvm.compiler.nodes.graphbuilderconf.InlineInvokePlugin;
-import org.graalvm.compiler.nodes.graphbuilderconf.IntrinsicContext;
-import org.graalvm.compiler.nodes.graphbuilderconf.NodePlugin;
 import org.graalvm.compiler.nodes.java.LoadFieldNode;
 import org.graalvm.compiler.nodes.java.StoreFieldNode;
+import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.options.Option;
-import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.OptimisticOptimizations;
-import org.graalvm.compiler.replacements.Snippets;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static com.oracle.graal.pointsto.infrastructure.GraphProvider.*;
-import static com.oracle.svm.hosted.phases.SharedGraphBuilderPhase.*;
+import static com.oracle.graal.pointsto.infrastructure.GraphProvider.Purpose;
+import static com.oracle.svm.hosted.phases.SharedGraphBuilderPhase.SharedBytecodeParser;
 
 public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin {
 
@@ -192,7 +181,7 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
 
     private final boolean analysis;
     private final HostedProviders providers;
-    private final InvocationData invocationData = new InvocationData();
+    private static final ConcurrentHashMap<AnalysisMethod, InvocationResult> dataInline = new ConcurrentHashMap<>();
     private static final Object NULL_MARKER = new Object();
 
     public NativeImageInlineDuringParsingPlugin(boolean analysis, HostedProviders providers) {
@@ -200,46 +189,26 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
         this.providers = providers;
     }
 
+    public static void printDataInline() {
+        if (dataInline.isEmpty()) {
+            System.out.println("No inline info");
+        } else {
+            dataInline.forEach((m, r) -> System.out.println("method: " + m.format("%n, %H") + ", result: " + r.toString()));
+        }
+    }
+
+    private static InvocationResult getResult(ResolvedJavaMethod method) {
+        AnalysisMethod key;
+        if (method instanceof AnalysisMethod) {
+            key = (AnalysisMethod) method;
+        } else {
+            key = ((HostedMethod) method).getWrapped();
+        }
+        return dataInline.get(key);
+    }
+
     @Override
     public InlineInfo shouldInlineInvoke(GraphBuilderContext b, ResolvedJavaMethod method, ValueNode[] args) {
-        if (Snippets.class.isAssignableFrom(((AnalysisMethod) (b.getMethod())).getDeclaringClass().getJavaClass())) {
-            /* We are not interfering with any snippet */
-            // System.out.println(((AnalysisMethod) (b.getMethod())).getDeclaringClass().getJavaClass());
-            //System.out.println("Snippet 1: " + method.getName() + ", " + b.getMethod().getName());
-            return null;
-        }
-
-        if (Snippets.class.isAssignableFrom(((AnalysisMethod) method).getDeclaringClass().getJavaClass())) {
-            /* We are not interfering with any snippet */
-            // System.out.println(((AnalysisMethod)method).getDeclaringClass().getJavaClass());
-            //System.out.println("Snippet 2: " + method.getName() + ", " + b.getMethod().getName());
-            return null;
-        }
-
-        if (b.getMethod().getAnnotation(Snippet.class) != null ||
-                method.getAnnotation(Snippet.class) != null) {
-            //System.out.println("Snippet: " + method.getName() + ", " + b.getMethod().getName());
-            return null;
-        }
-
-        if (b.getMethod().getAnnotation(SubstrateForeignCallTarget.class) != null ||
-                method.getAnnotation(SubstrateForeignCallTarget.class) != null) {
-            //System.out.println("ForeignCall: " + method.getName() + ", " + b.getMethod().getName());
-            return null;
-        }
-
-        if (b.getMethod().getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
-            //System.out.println("InternalVMMethod: " + method.getName());
-            /* We are not interfering with any internal vmmethod */
-            return null;
-        }
-
-        if (method.getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
-            //System.out.println("InternalVMMethod: " + method.getName());
-            /* We are not interfering with any internal vmmethod */
-            return null;
-
-        }
 
         if (b.parsingIntrinsic()) {
             /* We are not interfering with any intrinsic method handling. */
@@ -259,6 +228,25 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
             return null;
         }
 
+        if (b.getMethod().getAnnotation(Snippet.class) != null) {
+            return null;
+        }
+
+        if (b.getMethod().getAnnotation(SubstrateForeignCallTarget.class) != null ||
+                method.getAnnotation(SubstrateForeignCallTarget.class) != null) {
+            return null;
+        }
+
+        if (b.getMethod().getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
+            /* We are not interfering with any internal vmmethod */
+            return null;
+        }
+
+        if (method.getDeclaringClass().isAnnotationPresent(InternalVMMethod.class)) {
+            /* We are not interfering with any internal vmmethod */
+            return null;
+        }
+
         if (method.equals(b.getMetaAccess().lookupJavaMethod(SubstrateClassInitializationPlugin.ENSURE_INITIALIZED_METHOD))) {
             return null;
         }
@@ -271,46 +259,46 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
              * We already decided to inline the first callee into the root method, so now
              * recursively inline everything.
              */
-            inline = ((SharedBytecodeParser) b.getParent()).inlineDuringParsingState.children.get(callSite);
-
+            inline = ((SharedBytecodeParser) b.getParent()).inlineDuringParsingState != null ? ((SharedBytecodeParser) b.getParent()).inlineDuringParsingState.children.get(callSite) : null;
         } else {
-            InvocationResult newResult;
-
-            if (!method.hasBytecodes()) {
-                /* Native method. */
-                newResult = InvocationResult.ANALYSIS_TOO_COMPLICATED;
-            } else if (method.isSynchronized()) {
-                /*
-                 * Synchronization operations will always bring us above the node limit, so no point in
-                 * starting an analysis.
-                 */
-                newResult = InvocationResult.ANALYSIS_TOO_COMPLICATED;
-
-            } else if (((AnalysisMethod) method).buildGraph(b.getDebug(), method, providers, Purpose.ANALYSIS) != null) {
-                /* Method has a manually constructed graph via GraphProvider. */
-                newResult = InvocationResult.ANALYSIS_TOO_COMPLICATED;
-
-            } else if (providers.getGraphBuilderPlugins().getInvocationPlugins().lookupInvocation(method) != null) {
-                /* Method has an invocation plugin that we must not miss. */
-                newResult = InvocationResult.ANALYSIS_TOO_COMPLICATED;
-            } else {
+            if (analysis) {
+                InvocationResult newResult;
                 newResult = analyzeMethod(b, (AnalysisMethod) method, callSite);
                 if (newResult instanceof InvocationResultInline) {
                     InvocationResultInline inlineData = (InvocationResultInline) newResult;
                     if (((SharedBytecodeParser) b).inlineDuringParsingState == null) {
                         ((SharedBytecodeParser) b).inlineDuringParsingState = inlineData;
                     } else {
-                        Object nonNullElement = inlineData != null ? inlineData : NULL_MARKER;
+                       /* Object nonNullElement = inlineData != null ? inlineData : NULL_MARKER;
                         Object previous = ((SharedBytecodeParser) b).inlineDuringParsingState.children.putIfAbsent(inlineData.site, inlineData);
-                        VMError.guarantee(previous == null || previous.equals(nonNullElement), "Newly inlined element (" + nonNullElement + ") different than the previous (" + previous + ")");
+                        VMError.guarantee(previous == null || previous.equals(nonNullElement), "Newly inlined element (" + nonNullElement + ") different than the previous (" + previous + ")"); */
                     }
                 }
+                dataInline.putIfAbsent((AnalysisMethod) method, newResult);
+                inline = newResult;
+            } else {
+                InvocationResult existingResult = getResult(method);
+                /*if (existingResult == null) {
+                    throw VMError.shouldNotReachHere("No analysis result present: " + method.format("%n, %H, caller") + b.getMethod().format("%n, %H"));
+                }*/
+                inline = existingResult;
             }
-            InvocationResult existingResult = invocationData.putIfAbsent(b.getMethod(), b.bci(), newResult);
-            VMError.guarantee(existingResult == null || existingResult.equals(newResult), "Newly inlined element (" + newResult + ") different than the previous (" + existingResult + ")");
-            inline = newResult;
         }
         if (inline instanceof InvocationResultInline) {
+            if (analysis) {
+                AnalysisMethod aMethod = (AnalysisMethod) method;
+                aMethod.registerAsImplementationInvoked(null);
+                ((AnalysisBytecodeParser) b).bb.postTask(new DebugContextRunnable() {
+                    @Override
+                    public void run(DebugContext ignore) {
+                        aMethod.getTypeFlow().ensureParsed(((AnalysisBytecodeParser) b).bb, null);
+                    }
+                });
+                if (!aMethod.isStatic() && args[0].isConstant()) {
+                    AnalysisType receiverType = (AnalysisType) StampTool.typeOrNull(args[0]);
+                    receiverType.registerAsInHeap();
+                }
+            }
             System.out.println("Method to inline: " + method.format("%n, %H") + b.getMethod().format(", caller: %n, %H"));
             return InlineInfo.createStandardInlineInfo(method);
         } else {
@@ -319,6 +307,24 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
     }
 
     InvocationResult analyzeMethod(GraphBuilderContext b, AnalysisMethod method, CallSite callSite) {
+        if (!method.hasBytecodes()) {
+            /* Native method. */
+            return InvocationResult.ANALYSIS_TOO_COMPLICATED;
+        } else if (method.isSynchronized()) {
+            /*
+             * Synchronization operations will always bring us above the node limit, so no point in
+             * starting an analysis.
+             */
+            return InvocationResult.ANALYSIS_TOO_COMPLICATED;
+
+        } else if (method.buildGraph(b.getDebug(), method, providers, Purpose.ANALYSIS) != null) {
+            /* Method has a manually constructed graph via GraphProvider. */
+            return InvocationResult.ANALYSIS_TOO_COMPLICATED;
+
+        } else if (providers.getGraphBuilderPlugins().getInvocationPlugins().lookupInvocation(method) != null) {
+            /* Method has an invocation plugin that we must not miss. */
+            return InvocationResult.ANALYSIS_TOO_COMPLICATED;
+        }
         // get graph for callee
         StructuredGraph graph = new StructuredGraph.Builder(b.getOptions(), b.getDebug()).method(method).build();
         GraphBuilderConfiguration graphConfig = ((SharedBytecodeParser) b).getGraphBuilderConfig().copy();
@@ -332,7 +338,7 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
             }
         }
 
-        AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(providers, graphConfig, OptimisticOptimizations.NONE, null, providers.getWordTypes());
+        AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(((AnalysisBytecodeParser) b).bb, providers, graphConfig, OptimisticOptimizations.NONE, null, providers.getWordTypes());
         graphbuilder.apply(graph);
 
         /* System.out.println("\nbuild structured graph: " + b.getMethod().format("Caller: %n (class: %H), par: %p, ")

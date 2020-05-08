@@ -165,8 +165,8 @@ public final class SVMHost implements HostVM {
             EnumSet<AnalysisType.UsageKind> forbiddenType = forbiddenTypes.get(cur.getWrapped().toJavaName());
             if (forbiddenType != null && forbiddenType.contains(kind)) {
                 throw new UnsupportedFeatureException("Forbidden type " + cur.getWrapped().toJavaName() +
-                                (cur.equals(type) ? "" : " (superclass of " + type.getWrapped().toJavaName() + ")") +
-                                " UsageKind: " + kind);
+                        (cur.equals(type) ? "" : " (superclass of " + type.getWrapped().toJavaName() + ")") +
+                        " UsageKind: " + kind);
             }
         }
     }
@@ -177,8 +177,8 @@ public final class SVMHost implements HostVM {
     }
 
     @Override
-    public Instance createGraphBuilderPhase(HostedProviders providers, GraphBuilderConfiguration graphBuilderConfig, OptimisticOptimizations optimisticOpts, IntrinsicContext initialIntrinsicContext) {
-        return new AnalysisGraphBuilderPhase(providers, graphBuilderConfig, optimisticOpts, initialIntrinsicContext, providers.getWordTypes());
+    public Instance createGraphBuilderPhase(BigBang bb, HostedProviders providers, GraphBuilderConfiguration graphBuilderConfig, OptimisticOptimizations optimisticOpts, IntrinsicContext initialIntrinsicContext) {
+        return new AnalysisGraphBuilderPhase(bb, providers, graphBuilderConfig, optimisticOpts, initialIntrinsicContext, providers.getWordTypes());
     }
 
     @Override
@@ -297,7 +297,7 @@ public final class SVMHost implements HostVM {
         String sourceFileName = stringTable.deduplicate(type.getSourceFileName(), true);
 
         final DynamicHub dynamicHub = new DynamicHub(className, computeHubType(type), computeReferenceType(type), type.isLocal(), isAnonymousClass(javaClass), superHub, componentHub, sourceFileName,
-                        modifiers, hubClassLoader);
+                modifiers, hubClassLoader);
         if (JavaVersionUtil.JAVA_SPEC > 8) {
             ModuleAccess.extractAndSetModule(dynamicHub, javaClass);
         }
@@ -306,7 +306,7 @@ public final class SVMHost implements HostVM {
 
     /**
      * @return boolean if class is available or NoClassDefFoundError if class' parents are not on
-     *         the classpath or InternalError if the class is invalid.
+     * the classpath or InternalError if the class is invalid.
      */
     private static Object isAnonymousClass(Class<?> javaClass) {
         try {
@@ -318,9 +318,9 @@ public final class SVMHost implements HostVM {
                 return e;
             } else {
                 String message = "Discovered a type for which isAnonymousClass can't be called: " + javaClass.getTypeName() +
-                                ". To avoid this issue at build time use the " +
-                                SubstrateOptionsParser.commandArgument(NativeImageOptions.AllowIncompleteClasspath, "+") +
-                                " option. The NoClassDefFoundError will then be reported at run time when this method is called for the first time.";
+                        ". To avoid this issue at build time use the " +
+                        SubstrateOptionsParser.commandArgument(NativeImageOptions.AllowIncompleteClasspath, "+") +
+                        " option. The NoClassDefFoundError will then be reported at run time when this method is called for the first time.";
                 throw new UnsupportedFeatureException(message);
             }
         }
@@ -416,10 +416,10 @@ public final class SVMHost implements HostVM {
 
                     if (node.getReason() == DeoptimizationReason.JavaSubroutineMismatch) {
                         bb.getUnsupportedFeatures().addMessage(method.format("%H.%n(%p)"), method, "The bytecodes of the method " + method.format("%H.%n(%p)") +
-                                        " contain a JSR/RET structure that could not be simplified by the compiler. The JSR bytecode is unused and deprecated since Java 6. Please recompile your application with a newer Java compiler." +
-                                        System.lineSeparator() + "To diagnose the issue, you can add the option " +
-                                        SubstrateOptionsParser.commandArgument(NativeImageOptions.ReportUnsupportedElementsAtRuntime, "+") +
-                                        ". The error is then reported at run time when the JSR/RET is executed.");
+                                " contain a JSR/RET structure that could not be simplified by the compiler. The JSR bytecode is unused and deprecated since Java 6. Please recompile your application with a newer Java compiler." +
+                                System.lineSeparator() + "To diagnose the issue, you can add the option " +
+                                SubstrateOptionsParser.commandArgument(NativeImageOptions.ReportUnsupportedElementsAtRuntime, "+") +
+                                ". The error is then reported at run time when the JSR/RET is executed.");
                     }
                 }
             }
@@ -454,11 +454,11 @@ public final class SVMHost implements HostVM {
      * B.f in class B, then someone could rely on reading the old value of B.f before triggering
      * initialization of A. Similarly, if a class initializer of class A reads a static field B.f,
      * then an early automatic initialization of class A could read a non-yet-set value of B.f.
-     *
+     * <p>
      * Note that it is not necessary to disallow instance field accesses: Objects allocated by the
      * class initializer itself can always be accessed because they are independent from other
      * initializers; all other objects must be loaded transitively from a static field.
-     *
+     * <p>
      * Currently, we are conservative and mark all methods that access static fields as unsafe for
      * automatic class initialization (unless the class initializer itself accesses a static field
      * of its own class - the common way of initializing static fields). The check could be relaxed
