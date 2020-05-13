@@ -184,7 +184,8 @@ public class CompileQueue {
          * For debugging only: chaining of the compile reason, so that you can track the compilation
          * of a method back to an entry point.
          */
-        @SuppressWarnings("unused") private final CompileReason prevReason;
+        @SuppressWarnings("unused")
+        private final CompileReason prevReason;
 
         public CompileReason(CompileReason prevReason) {
             this.prevReason = prevReason;
@@ -206,15 +207,17 @@ public class CompileQueue {
     public static class DirectCallReason extends CompileReason {
 
         private final HostedMethod caller;
+        private final Object callData;
 
-        public DirectCallReason(HostedMethod caller, CompileReason prevReason) {
+        public DirectCallReason(HostedMethod caller, CompileReason prevReason, Object callData) {
             super(prevReason);
             this.caller = caller;
+            this.callData = callData;
         }
 
         @Override
         public String toString() {
-            return "Direct call from " + caller.format("%r %h.%n(%p)");
+            return "Direct call from " + caller.format("%r %h.%n(%p)") + ", callData " + callData;
         }
     }
 
@@ -222,16 +225,18 @@ public class CompileQueue {
 
         private final HostedMethod caller;
         private final HostedMethod callTarget;
+        private final Object callData;
 
-        public VirtualCallReason(HostedMethod caller, HostedMethod callTarget, CompileReason prevReason) {
+        public VirtualCallReason(HostedMethod caller, HostedMethod callTarget, CompileReason prevReason, Object callData) {
             super(prevReason);
             this.caller = caller;
             this.callTarget = callTarget;
+            this.callData = callData;
         }
 
         @Override
         public String toString() {
-            return "Virtual call from " + caller.format("%r %h.%n(%p)") + ", callTarget " + callTarget.format("%r %h.%n(%p)");
+            return "Virtual call from " + caller.format("%r %h.%n(%p)") + ", callTarget " + callTarget.format("%r %h.%n(%p)") + ", callData " + callData;
         }
     }
 
@@ -314,7 +319,7 @@ public class CompileQueue {
     }
 
     public CompileQueue(DebugContext debug, FeatureHandler featureHandler, HostedUniverse universe, SharedRuntimeConfigurationBuilder runtimeConfigBuilder, Boolean deoptimizeAll,
-                    SnippetReflectionProvider snippetReflection, ForkJoinPool executorService) {
+                        SnippetReflectionProvider snippetReflection, ForkJoinPool executorService) {
         this.universe = universe;
         this.compilations = new ConcurrentHashMap<>();
         this.runtimeConfig = runtimeConfigBuilder.getRuntimeConfig();
@@ -410,8 +415,8 @@ public class CompileQueue {
         long totalNumDuringCallEntryPoints = 0;
 
         System.out.format("Code Size; Nodes Before; Nodes After; Is Trivial;" +
-                        " Deopt Target; Code Size; Nodes Before; Nodes After; Deopt Entries; Deopt During Call;" +
-                        " Entry Points; Direct Calls; Virtual Calls; Method\n");
+                " Deopt Target; Code Size; Nodes Before; Nodes After; Deopt Entries; Deopt During Call;" +
+                " Entry Points; Direct Calls; Virtual Calls; Method\n");
 
         List<CompileTask> tasks = new ArrayList<>(compilations.values());
         tasks.sort(Comparator.comparing(t2 -> t2.method.format("%H.%n(%p) %r")));
@@ -438,7 +443,7 @@ public class CompileQueue {
                     totalNumDuringCallEntryPoints += dci.numDuringCallEntryPoints;
 
                     System.out.format(" D; %6d; %5d; %5d; %4d; %4d;", deoptMethodSize, dci.numNodesBeforeCompilation, dci.numNodesAfterCompilation, dci.numDeoptEntryPoints,
-                                    dci.numDuringCallEntryPoints);
+                            dci.numDuringCallEntryPoints);
 
                 } else {
                     sizeNonDeoptMethods += result.getTargetCodeSize();
@@ -447,10 +452,10 @@ public class CompileQueue {
                 }
 
                 System.out.format(" %4d; %4d; %4d; %s\n",
-                                task.allReasons.stream().filter(t -> t instanceof EntryPointReason).count(),
-                                task.allReasons.stream().filter(t -> t instanceof DirectCallReason).count(),
-                                task.allReasons.stream().filter(t -> t instanceof VirtualCallReason).count(),
-                                method.format("%H.%n(%p) %r"));
+                        task.allReasons.stream().filter(t -> t instanceof EntryPointReason).count(),
+                        task.allReasons.stream().filter(t -> t instanceof DirectCallReason).count(),
+                        task.allReasons.stream().filter(t -> t instanceof VirtualCallReason).count(),
+                        method.format("%H.%n(%p) %r"));
             }
         }
         System.out.println();
@@ -484,14 +489,14 @@ public class CompileQueue {
      */
     private void parseAheadOfTimeCompiledMethods() {
         universe.getMethods().stream()
-                        .filter(method -> method.isEntryPoint() || CompilationInfoSupport.singleton().isForcedCompilation(method))
-                        .forEach(method -> ensureParsed(method, new EntryPointReason()));
+                .filter(method -> method.isEntryPoint() || CompilationInfoSupport.singleton().isForcedCompilation(method))
+                .forEach(method -> ensureParsed(method, new EntryPointReason()));
 
         SubstrateForeignCallsProvider foreignCallsProvider = (SubstrateForeignCallsProvider) runtimeConfig.getProviders().getForeignCalls();
         foreignCallsProvider.getForeignCalls().keySet().stream()
-                        .map(descriptor -> (HostedMethod) descriptor.findMethod(runtimeConfig.getProviders().getMetaAccess()))
-                        .filter(method -> method.wrapped.isRootMethod())
-                        .forEach(method -> ensureParsed(method, new EntryPointReason()));
+                .map(descriptor -> (HostedMethod) descriptor.findMethod(runtimeConfig.getProviders().getMetaAccess()))
+                .filter(method -> method.wrapped.isRootMethod())
+                .forEach(method -> ensureParsed(method, new EntryPointReason()));
     }
 
     private void parseDeoptimizationTargetMethods() {
@@ -500,8 +505,8 @@ public class CompileQueue {
          * targets.
          */
         universe.getMethods().stream()
-                        .filter(method -> CompilationInfoSupport.singleton().isDeoptTarget(method))
-                        .forEach(method -> ensureParsed(universe.createDeoptTarget(method), new EntryPointReason()));
+                .filter(method -> CompilationInfoSupport.singleton().isDeoptTarget(method))
+                .forEach(method -> ensureParsed(universe.createDeoptTarget(method), new EntryPointReason()));
 
         /*
          * Deoptimization target code for deoptimization testing: all methods that are not
@@ -509,8 +514,8 @@ public class CompileQueue {
          * possible deoptimization entry points are emitted.
          */
         universe.getMethods().stream()
-                        .filter(method -> method.getWrapped().isImplementationInvoked() && canDeoptForTesting(method))
-                        .forEach(this::ensureParsedForDeoptTesting);
+                .filter(method -> method.getWrapped().isImplementationInvoked() && canDeoptForTesting(method))
+                .forEach(this::ensureParsedForDeoptTesting);
 
     }
 
@@ -548,7 +553,7 @@ public class CompileQueue {
                 universe.getMethods().stream().filter(method -> method.compilationInfo.getGraph() != null).forEach(method -> executor.execute(new TrivialInlineTask(method)));
 
                 universe.getMethods().stream().map(method -> method.compilationInfo.getDeoptTargetMethod()).filter(Objects::nonNull).forEach(
-                                deoptTargetMethod -> executor.execute(new TrivialInlineTask(deoptTargetMethod)));
+                        deoptTargetMethod -> executor.execute(new TrivialInlineTask(deoptTargetMethod)));
                 executor.start();
                 executor.complete();
                 executor.shutdown();
@@ -574,7 +579,7 @@ public class CompileQueue {
                     for (Invoke invoke : graph.getInvokes()) {
                         if (invoke instanceof InvokeNode) {
                             throw VMError.shouldNotReachHere("Found InvokeNode without exception edge: invocation of " +
-                                            invoke.callTarget().targetMethod().format("%H.%n(%p)") + " in " + (graph.method() == null ? graph.toString() : graph.method().format("%H.%n(%p)")));
+                                    invoke.callTarget().targetMethod().format("%H.%n(%p)") + " in " + (graph.method() == null ? graph.toString() : graph.method().format("%H.%n(%p)")));
                         }
 
                         if (invoke.useForInlining()) {
@@ -664,13 +669,13 @@ public class CompileQueue {
     protected void compileAll() throws InterruptedException {
         executor.init();
         universe.getMethods().stream()
-                        .filter(method -> method.isEntryPoint() || CompilationInfoSupport.singleton().isForcedCompilation(method))
-                        .forEach(method -> ensureCompiled(method, new EntryPointReason()));
+                .filter(method -> method.isEntryPoint() || CompilationInfoSupport.singleton().isForcedCompilation(method))
+                .forEach(method -> ensureCompiled(method, new EntryPointReason()));
 
         universe.getMethods().stream()
-                        .map(method -> method.compilationInfo.getDeoptTargetMethod())
-                        .filter(deoptTargetMethod -> deoptTargetMethod != null)
-                        .forEach(deoptTargetMethod -> ensureCompiled(deoptTargetMethod, new EntryPointReason()));
+                .map(method -> method.compilationInfo.getDeoptTargetMethod())
+                .filter(deoptTargetMethod -> deoptTargetMethod != null)
+                .forEach(deoptTargetMethod -> ensureCompiled(deoptTargetMethod, new EntryPointReason()));
 
         executor.start();
         executor.complete();
@@ -721,7 +726,7 @@ public class CompileQueue {
             try {
                 if (needParsing) {
                     GraphBuilderConfiguration gbConf = createHostedGraphBuilderConfiguration(providers, method);
-                    new HostedGraphBuilderPhase(providers, gbConf, getOptimisticOpts(), null, providers.getWordTypes()).apply(graph);
+                    new HostedGraphBuilderPhase(providers, gbConf, getOptimisticOpts(), null, providers.getWordTypes(), universe.hostVM().getInlineInvocationData()).apply(graph);
 
                 } else {
                     graph.setGuardsStage(GuardsStage.FIXED_DEOPTS);
@@ -768,7 +773,7 @@ public class CompileQueue {
         if (isIndirect) {
             for (HostedMethod invokeImplementation : invokeTarget.getImplementations()) {
                 handleSpecialization(method, targetNode, invokeTarget, invokeImplementation);
-                ensureParsed(invokeImplementation, new VirtualCallReason(method, invokeImplementation, reason));
+                ensureParsed(invokeImplementation, new VirtualCallReason(method, invokeImplementation, reason, targetNode));
             }
         } else {
             /*
@@ -783,7 +788,7 @@ public class CompileQueue {
              */
             if (invokeTarget.wrapped.isSimplyImplementationInvoked()) {
                 handleSpecialization(method, targetNode, invokeTarget, invokeTarget);
-                ensureParsed(invokeTarget, new DirectCallReason(method, reason));
+                ensureParsed(invokeTarget, new DirectCallReason(method, reason, targetNode));
             }
         }
     }
@@ -931,9 +936,9 @@ public class CompileQueue {
     class HostedCompilationResultBuilderFactory implements CompilationResultBuilderFactory {
         @Override
         public CompilationResultBuilder createBuilder(CodeCacheProvider codeCache, ForeignCallsProvider foreignCalls, FrameMap frameMap, Assembler asm, DataBuilder dataBuilder,
-                        FrameContext frameContext, OptionValues options, DebugContext debug, CompilationResult compilationResult, Register uncompressedNullRegister) {
+                                                      FrameContext frameContext, OptionValues options, DebugContext debug, CompilationResult compilationResult, Register uncompressedNullRegister) {
             return new CompilationResultBuilder(codeCache, foreignCalls, frameMap, asm, dataBuilder, frameContext, options, debug, compilationResult, uncompressedNullRegister,
-                            EconomicMap.wrapMap(dataCache));
+                    EconomicMap.wrapMap(dataCache));
         }
     }
 
@@ -970,9 +975,9 @@ public class CompileQueue {
                 method.compilationInfo.numNodesBeforeCompilation = graph.getNodeCount();
                 method.compilationInfo.numDeoptEntryPoints = graph.getNodes().filter(DeoptEntryNode.class).count();
                 method.compilationInfo.numDuringCallEntryPoints = graph.getNodes(MethodCallTargetNode.TYPE).snapshot().stream()
-                                .map(MethodCallTargetNode::invoke)
-                                .filter(invoke -> method.compilationInfo.isDeoptEntry(invoke.bci(), true, false))
-                                .count();
+                        .map(MethodCallTargetNode::invoke)
+                        .filter(invoke -> method.compilationInfo.isDeoptEntry(invoke.bci(), true, false))
+                        .count();
 
                 Suites suites = method.compilationInfo.isDeoptTarget() ? deoptTargetSuites : regularSuites;
                 LIRSuites lirSuites = method.compilationInfo.isDeoptTarget() ? deoptTargetLIRSuites : regularLIRSuites;
@@ -981,7 +986,7 @@ public class CompileQueue {
 
                 try (Indent indent = debug.logAndIndent("compile %s", method)) {
                     GraalCompiler.compileGraph(graph, method, backend.getProviders(), backend, null, getOptimisticOpts(), method.getProfilingInfo(), suites, lirSuites, result,
-                                    new HostedCompilationResultBuilderFactory(), false);
+                            new HostedCompilationResultBuilderFactory(), false);
                 }
                 method.getProfilingInfo().setCompilerIRSize(StructuredGraph.class, method.compilationInfo.graph.getNodeCount());
                 method.compilationInfo.numNodesAfterCompilation = graph.getNodeCount();
@@ -994,10 +999,10 @@ public class CompileQueue {
                         Call call = (Call) infopoint;
                         HostedMethod callTarget = (HostedMethod) call.target;
                         if (call.direct) {
-                            ensureCompiled(callTarget, new DirectCallReason(method, reason));
+                            ensureCompiled(callTarget, new DirectCallReason(method, reason, call));
                         } else if (callTarget != null && callTarget.getImplementations() != null) {
                             for (HostedMethod impl : callTarget.getImplementations()) {
-                                ensureCompiled(impl, new VirtualCallReason(method, callTarget, reason));
+                                ensureCompiled(impl, new VirtualCallReason(method, callTarget, reason, call));
                             }
                         }
                     }
@@ -1073,7 +1078,7 @@ public class CompileQueue {
                 long encodedBci = FrameInfoEncoder.encodeBci(rootFrame.getBCI(), rootFrame.duringCall, rootFrame.rethrowException);
                 if (encodedBciMap.containsKey(encodedBci)) {
                     assert encodedBciMap.get(encodedBci).equals(rootFrame) : "duplicate encoded bci " + encodedBci + " in deopt target " + method + " with different debug info:\n\n" + rootFrame +
-                                    "\n\n" + encodedBciMap.get(encodedBci);
+                            "\n\n" + encodedBciMap.get(encodedBci);
                 }
                 encodedBciMap.put(encodedBci, rootFrame);
             }
@@ -1084,8 +1089,8 @@ public class CompileQueue {
 
     private static boolean isSingleSteppingInfopoint(Infopoint infopoint) {
         return infopoint.reason == InfopointReason.METHOD_START ||
-                        infopoint.reason == InfopointReason.METHOD_END ||
-                        infopoint.reason == InfopointReason.BYTECODE_POSITION;
+                infopoint.reason == InfopointReason.METHOD_END ||
+                infopoint.reason == InfopointReason.BYTECODE_POSITION;
     }
 
     /**
@@ -1141,11 +1146,11 @@ public class CompileQueue {
              */
             String className = method.getDeclaringClass().getName();
             if (className.contains("/svm/core/code/CodeInfoEncoder") ||
-                            className.contains("com/oracle/svm/core/thread/JavaThreads") ||
-                            className.contains("com/oracle/svm/core/heap/") ||
-                            className.contains("com/oracle/svm/core/genscavenge/") ||
-                            className.contains("com/oracle/svm/core/thread/VMOperationControl") ||
-                            className.contains("debug/internal/DebugValueMap") && method.getName().equals("registerTopLevel")) {
+                    className.contains("com/oracle/svm/core/thread/JavaThreads") ||
+                    className.contains("com/oracle/svm/core/heap/") ||
+                    className.contains("com/oracle/svm/core/genscavenge/") ||
+                    className.contains("com/oracle/svm/core/thread/VMOperationControl") ||
+                    className.contains("debug/internal/DebugValueMap") && method.getName().equals("registerTopLevel")) {
                 return false;
             }
             /*
@@ -1167,12 +1172,12 @@ public class CompileQueue {
      * Inserts a call to {@link DeoptTester#deoptTest} right after FixedWithNextNode StateSplits.
      *
      * @param method method that is being augmented with deopt test calls
-     * @param graph The graph of a deoptimizable method or the corresponding deopt target method.
+     * @param graph  The graph of a deoptimizable method or the corresponding deopt target method.
      */
     private static void insertDeoptTests(HostedMethod method, StructuredGraph graph) {
         for (Node node : graph.getNodes()) {
             if (node instanceof FixedWithNextNode && node instanceof StateSplit && !(node instanceof InvokeNode) && !(node instanceof ForeignCallNode) && !(node instanceof DeoptTestNode) &&
-                            !(method.isSynchronized() && node instanceof StartNode)) {
+                    !(method.isSynchronized() && node instanceof StartNode)) {
                 FixedWithNextNode fixedWithNext = (FixedWithNextNode) node;
                 FixedNode next = fixedWithNext.next();
                 DeoptTestNode testNode = graph.add(new DeoptTestNode());

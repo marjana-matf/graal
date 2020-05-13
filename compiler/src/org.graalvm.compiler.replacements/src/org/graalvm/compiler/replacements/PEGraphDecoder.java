@@ -871,7 +871,7 @@ public abstract class PEGraphDecoder extends SimplifyingGraphDecoder {
             InlineInfo inlineInfo = plugin.shouldInlineInvoke(graphBuilderContext, targetMethod, arguments);
             if (inlineInfo != null) {
                 if (inlineInfo.allowsInlining()) {
-                    return doInline(methodScope, loopScope, invokeData, inlineInfo, arguments);
+                    return doInline(methodScope, loopScope, invokeData, graphBuilderContext, inlineInfo, arguments);
                 } else {
                     return null;
                 }
@@ -880,8 +880,8 @@ public abstract class PEGraphDecoder extends SimplifyingGraphDecoder {
         return null;
     }
 
-    protected LoopScope doInline(PEMethodScope methodScope, LoopScope loopScope, InvokeData invokeData, InlineInfo inlineInfo, ValueNode[] arguments) {
-        if (!invokeData.invoke.useForInlining()) {
+    protected LoopScope doInline(PEMethodScope methodScope, LoopScope loopScope, InvokeData invokeData, GraphBuilderContext notifyGraphBuilderContext, InlineInfo inlineInfo, ValueNode[] arguments) {
+       if (!invokeData.invoke.useForInlining()) {
             return null;
         }
         ResolvedJavaMethod inlineMethod = inlineInfo.getMethodToInline();
@@ -896,7 +896,7 @@ public abstract class PEGraphDecoder extends SimplifyingGraphDecoder {
         }
 
         for (InlineInvokePlugin plugin : inlineInvokePlugins) {
-            plugin.notifyBeforeInline(inlineMethod);
+            plugin.notifyBeforeInline(notifyGraphBuilderContext, inlineMethod);
         }
 
         Invoke invoke = invokeData.invoke;
@@ -1063,8 +1063,12 @@ public abstract class PEGraphDecoder extends SimplifyingGraphDecoder {
         }
         deleteInvoke(invoke);
 
+        PENonAppendGraphBuilderContext notifyGraphBuilderContext = null;
         for (InlineInvokePlugin plugin : inlineInvokePlugins) {
-            plugin.notifyAfterInline(inlineMethod);
+            if (notifyGraphBuilderContext == null) {
+                notifyGraphBuilderContext = new PENonAppendGraphBuilderContext(methodScope, invokeData.invoke);
+            }
+            plugin.notifyAfterInline(notifyGraphBuilderContext, inlineMethod);
         }
     }
 

@@ -79,7 +79,7 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
     // to use this plugin: native-image Example -H:+InlineBeforeAnalysis
     public static class Options {
         @Option(help = "Inline methods during parsing before the static analysis.")//
-        public static final HostedOptionKey<Boolean> InlineBeforeAnalysis = new HostedOptionKey<>(false);
+        public static final HostedOptionKey<Boolean> NIInlineBeforeAnalysis = new HostedOptionKey<>(false);
 
     }
 
@@ -329,7 +329,7 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
         int nodeCountCaller = b.getGraph().getNodeCount();
         // get graph for callee
         StructuredGraph graph = new StructuredGraph.Builder(b.getOptions(), b.getDebug()).method(method).build();
-        AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(providers, ((SharedBytecodeParser) b).getGraphBuilderConfig(), OptimisticOptimizations.NONE, null, providers.getWordTypes());
+        AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(null,providers, ((SharedBytecodeParser) b).getGraphBuilderConfig(), OptimisticOptimizations.NONE, null, providers.getWordTypes(),null);
         graphbuilder.apply(graph);
         int nodeCountCallee = graph.getNodeCount();
 
@@ -383,16 +383,6 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
         }
 
         return InvocationResult.ANALYSIS_TOO_COMPLICATED;
-    }
-
-    @Override
-    public void notifyAfterInline(ResolvedJavaMethod methodToInline) {
-
-    }
-
-    @Override
-    public void notifyBeforeInline(ResolvedJavaMethod methodToInline) {
-
     }
 
     @Override

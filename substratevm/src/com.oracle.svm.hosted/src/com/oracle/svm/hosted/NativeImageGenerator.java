@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.oracle.svm.hosted.phases.SubstrateInlineDuringParsingPlugin;
 import org.graalvm.collections.EconomicSet;
 import org.graalvm.collections.Pair;
 import org.graalvm.compiler.api.replacements.Fold;
@@ -1104,10 +1105,14 @@ public class NativeImageGenerator {
         SubstrateReplacements replacements = (SubstrateReplacements) providers.getReplacements();
         plugins.appendInlineInvokePlugin(replacements);
         
-        if (analysis && NativeImageInlineDuringParsingPlugin.Options.InlineBeforeAnalysis.getValue()) {
+        if (analysis && NativeImageInlineDuringParsingPlugin.Options.NIInlineBeforeAnalysis.getValue()) {
             System.out.println("Point to add NativeImageInlineDuringParsingPlugin");
             plugins.appendInlineInvokePlugin(new NativeImageInlineDuringParsingPlugin(analysis, providers));
             System.out.println("NativeImageInlineDuringParsingPlugin added");
+        }
+
+        if (SubstrateInlineDuringParsingPlugin.Options.InlineBeforeAnalysis.getValue()) {
+            plugins.appendInlineInvokePlugin(new SubstrateInlineDuringParsingPlugin(analysis, providers));
         }
         
         plugins.appendNodePlugin(new IntrinsifyMethodHandlesInvocationPlugin(analysis, providers, aUniverse, hUniverse));
