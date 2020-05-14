@@ -1116,8 +1116,6 @@ public abstract class PEGraphDecoder extends SimplifyingGraphDecoder {
         }
         deleteInvoke(invoke);
 
-        assert exceptionValue == null || exceptionValue instanceof FixedAnchorNode && exceptionValue.predecessor() != null;
-
         for (InlineInvokePlugin plugin : inlineInvokePlugins) {
             plugin.notifyAfterInline(inlineMethod);
         }

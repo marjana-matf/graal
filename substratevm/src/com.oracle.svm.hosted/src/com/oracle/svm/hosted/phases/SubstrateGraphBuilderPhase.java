@@ -31,6 +31,7 @@ import org.graalvm.compiler.java.BytecodeParser;
 import org.graalvm.compiler.java.GraphBuilderPhase;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
 import org.graalvm.compiler.nodes.CallTargetNode;
+import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.nodes.InvokeWithExceptionNode;
 import org.graalvm.compiler.nodes.KillingBeginNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
@@ -113,6 +114,14 @@ public class SubstrateGraphBuilderPhase extends SharedGraphBuilderPhase {
             invoke.setNext(beginNode);
             lastInstr = beginNode;
             return invoke;
+        }
+
+        @Override
+        protected Invoke createNonInlinedInvoke(ExceptionEdgeAction exceptionEdge, int invokeBci, CallTargetNode callTarget, JavaKind resultType) {
+            /*if (inlineInvocationData != null) {
+                inlineInvocationData.onCreateInvoke(this, invokeBci, false, callTarget.targetMethod());
+            }*/
+            return super.createNonInlinedInvoke(exceptionEdge, invokeBci, callTarget, resultType);
         }
 
     }

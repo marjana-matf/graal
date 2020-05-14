@@ -259,6 +259,7 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
              * We already decided to inline the first callee into the root method, so now
              * recursively inline everything.
              */
+            // inline = getResult(method);
             inline = ((SharedBytecodeParser) b.getParent()).inlineDuringParsingState != null ? ((SharedBytecodeParser) b.getParent()).inlineDuringParsingState.children.get(callSite) : null;
         } else {
             if (analysis) {
@@ -341,9 +342,6 @@ public class NativeImageInlineDuringParsingPlugin implements InlineInvokePlugin 
         AnalysisGraphBuilderPhase graphbuilder = new AnalysisGraphBuilderPhase(((AnalysisBytecodeParser) b).bb, providers, graphConfig, OptimisticOptimizations.NONE, null, providers.getWordTypes());
         graphbuilder.apply(graph);
 
-        /* System.out.println("\nbuild structured graph: " + b.getMethod().format("Caller: %n (class: %H), par: %p, ")
-                + method.format("\nCallee: %n (class: %H), par: %p, "));
-        */
         int countFrameStates = 0;
         FrameState frameState = null;
         boolean hasLoadField = false;

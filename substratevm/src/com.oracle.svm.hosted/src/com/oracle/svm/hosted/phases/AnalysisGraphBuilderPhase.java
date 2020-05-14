@@ -29,7 +29,9 @@ import org.graalvm.compiler.api.replacements.Fold;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.java.BytecodeParser;
 import org.graalvm.compiler.java.GraphBuilderPhase;
+import org.graalvm.compiler.nodes.CallTargetNode;
 import org.graalvm.compiler.nodes.CallTargetNode.InvokeKind;
+import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.graphbuilderconf.GeneratedInvocationPlugin;
@@ -96,5 +98,12 @@ public class AnalysisGraphBuilderPhase extends SharedGraphBuilderPhase {
         public boolean canDeferPlugin(GeneratedInvocationPlugin plugin) {
             return plugin.getSource().equals(Fold.class) || plugin.getSource().equals(Node.NodeIntrinsic.class);
         }
+
+        @Override
+        protected Invoke createNonInlinedInvoke(ExceptionEdgeAction exceptionEdge, int invokeBci, CallTargetNode callTarget, JavaKind resultType){
+            return super.createNonInlinedInvoke(exceptionEdge, invokeBci, callTarget, resultType);
+        }
+
+
     }
 }
