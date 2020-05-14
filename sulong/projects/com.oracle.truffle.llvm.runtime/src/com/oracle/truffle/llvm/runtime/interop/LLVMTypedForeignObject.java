@@ -47,16 +47,15 @@ import com.oracle.truffle.api.library.ExportMessage;
 import com.oracle.truffle.llvm.runtime.LLVMContext;
 import com.oracle.truffle.llvm.runtime.LLVMLanguage;
 import com.oracle.truffle.llvm.runtime.except.LLVMPolyglotException;
-import com.oracle.truffle.llvm.runtime.interop.LLVMTypedForeignObjectFactory.ForeignGetTypeNodeGen;
 import com.oracle.truffle.llvm.runtime.interop.access.LLVMInteropReadNode;
 import com.oracle.truffle.llvm.runtime.interop.access.LLVMInteropType;
 import com.oracle.truffle.llvm.runtime.interop.access.LLVMInteropWriteNode;
 import com.oracle.truffle.llvm.runtime.interop.convert.ForeignToLLVM.ForeignToLLVMType;
+import com.oracle.truffle.llvm.runtime.library.internal.LLVMAsForeignLibrary;
 import com.oracle.truffle.llvm.runtime.library.internal.LLVMManagedReadLibrary;
 import com.oracle.truffle.llvm.runtime.library.internal.LLVMManagedWriteLibrary;
 import com.oracle.truffle.llvm.runtime.library.internal.LLVMNativeLibrary;
 import com.oracle.truffle.llvm.runtime.nodes.api.LLVMNode;
-import com.oracle.truffle.llvm.runtime.nodes.api.LLVMObjectAccess;
 import com.oracle.truffle.llvm.runtime.nodes.memory.load.LLVMDerefHandleGetReceiverNode;
 import com.oracle.truffle.llvm.runtime.pointer.LLVMManagedPointer;
 import com.oracle.truffle.llvm.runtime.pointer.LLVMNativePointer;
@@ -70,7 +69,8 @@ import com.oracle.truffle.llvm.spi.ReferenceLibrary;
 @ExportLibrary(LLVMManagedWriteLibrary.class)
 @ExportLibrary(ReferenceLibrary.class)
 @ExportLibrary(NativeTypeLibrary.class)
-public final class LLVMTypedForeignObject extends LLVMInternalTruffleObject implements LLVMObjectAccess {
+@ExportLibrary(LLVMAsForeignLibrary.class)
+public final class LLVMTypedForeignObject extends LLVMInternalTruffleObject {
 
     final Object foreign;
     private final LLVMInteropType.Structured type;
@@ -94,16 +94,6 @@ public final class LLVMTypedForeignObject extends LLVMInternalTruffleObject impl
 
     public LLVMInteropType.Structured getType() {
         return type;
-    }
-
-    @Override
-    public LLVMObjectReadNode createReadNode() {
-        return new ForeignReadNode();
-    }
-
-    @Override
-    public LLVMObjectWriteNode createWriteNode() {
-        return new ForeignWriteNode();
     }
 
     @Override
@@ -159,40 +149,6 @@ public final class LLVMTypedForeignObject extends LLVMInternalTruffleObject impl
         static LLVMInteropType.Structured doFallback(LLVMTypedForeignObject object,
                         @SuppressWarnings("unused") @CachedLibrary("object.getForeign()") NativeTypeLibrary typeLibrary) {
             return object.getType();
-        }
-    }
-
-    static class ForeignReadNode extends LLVMNode implements LLVMObjectReadNode {
-
-        @Child LLVMInteropReadNode read = LLVMInteropReadNode.create();
-        @Child ForeignGetTypeNode getType = ForeignGetTypeNodeGen.create();
-
-        @Override
-        public Object executeRead(Object obj, long offset, ForeignToLLVMType type) {
-            LLVMTypedForeignObject object = (LLVMTypedForeignObject) obj;
-            return read.execute(getType.execute(object), object.getForeign(), offset, type);
-        }
-
-        @Override
-        public boolean canAccess(Object obj) {
-            return obj instanceof LLVMTypedForeignObject;
-        }
-    }
-
-    static class ForeignWriteNode extends LLVMNode implements LLVMObjectWriteNode {
-
-        @Child LLVMInteropWriteNode write = LLVMInteropWriteNode.create();
-        @Child ForeignGetTypeNode getType = ForeignGetTypeNodeGen.create();
-
-        @Override
-        public void executeWrite(Object obj, long offset, Object value, ForeignToLLVMType writeType) {
-            LLVMTypedForeignObject object = (LLVMTypedForeignObject) obj;
-            write.execute(getType.execute(object), object.getForeign(), offset, value, writeType);
-        }
-
-        @Override
-        public boolean canAccess(Object obj) {
-            return obj instanceof LLVMTypedForeignObject;
         }
     }
 
@@ -883,4 +839,16 @@ public final class LLVMTypedForeignObject extends LLVMInternalTruffleObject impl
             return false;
         }
     }
+
+    @ExportMessage
+    @SuppressWarnings("static-method")
+    public boolean isForeign() {
+        return true;
+    }
+
+    @ExportMessage
+    public Object asForeign() {
+        return foreign;
+    }
+
 }

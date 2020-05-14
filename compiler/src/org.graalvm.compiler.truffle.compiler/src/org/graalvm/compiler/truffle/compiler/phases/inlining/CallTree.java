@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ public final class CallTree extends Graph {
     private final PartialEvaluator.Request request;
     int expanded = 1;
     int inlined = 1;
+    private int nextId = 0;
 
     CallTree(PartialEvaluator partialEvaluator, PartialEvaluator.Request request, InliningPolicy policy) {
         super(request.graph.getOptions(), request.debug);
@@ -48,6 +49,10 @@ public final class CallTree extends Graph {
         this.graphManager = new GraphManager(partialEvaluator, request);
         // Should be kept as the last call in the constructor, as this is an argument.
         this.root = CallNode.makeRoot(this, request);
+    }
+
+    int nextId() {
+        return nextId++;
     }
 
     InliningPolicy getPolicy() {
@@ -117,5 +122,9 @@ public final class CallTree extends Graph {
 
     public void dumpInfo(String format, Object arg) {
         getDebug().dump(DebugContext.INFO_LEVEL, this, format, arg);
+    }
+
+    public void finalizeGraph() {
+        root.finalizeGraph();
     }
 }

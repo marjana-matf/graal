@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -321,25 +321,7 @@ public final class PolyglotCompilerOptions {
     public static final OptionKey<Integer> InliningRecursionDepth = new OptionKey<>(2);
 
     @Option(help = "Use language-agnostic inlining (overrides the TruffleFunctionInlining setting, option is experimental).", category = OptionCategory.EXPERT)
-    public static final OptionKey<Boolean> LanguageAgnosticInlining = new OptionKey<>(false);
-
-    @Option(help = "Controls how impactful many cutoff nodes is on exploration decision in language-agnostic inlining.", category = OptionCategory.EXPERT)
-    public static final OptionKey<Double> InliningCutoffCountPenalty = new OptionKey<>(0.9);
-
-    @Option(help = "Controls how impactful the size of the subtree is on exploration decision in language-agnostic inlining.", category = OptionCategory.EXPERT)
-    public static final OptionKey<Double> InliningNodeCountPenalty = new OptionKey<>(0.01);
-
-    @Option(help = "Controls how impactful few cutoff nodes are on exploration decisions in language-agnostic inlining.", category = OptionCategory.EXPERT)
-    public static final OptionKey<Double> InliningExpandAllProximityFactor = new OptionKey<>(0.5);
-
-    @Option(help = "Controls at what point few cutoff nodes are impactful on exploration decisions in language-agnostic inlining.", category = OptionCategory.EXPERT)
-    public static final OptionKey<Integer> InliningExpandAllProximityBonus = new OptionKey<>(10);
-
-    @Option(help = "Controls how steep the exploration limit curve grows in language-agnostic inlining.", category = OptionCategory.EXPERT)
-    public static final OptionKey<Integer> InliningExpansionCounterPressure = new OptionKey<>(2000);
-
-    @Option(help = "Controls how steep the inlining limit curve grows in language-agnostic inlining", category = OptionCategory.EXPERT)
-    public static final OptionKey<Integer> InliningInliningCounterPressure = new OptionKey<>(2000);
+    public static final OptionKey<Boolean> LanguageAgnosticInlining = new OptionKey<>(true);
 
     // Splitting
 
@@ -445,10 +427,10 @@ public final class PolyglotCompilerOptions {
     public static final OptionKey<String> InliningPolicy = new OptionKey<>("");
 
     @Option(help = "The base expansion budget for language-agnostic inlining.", category = OptionCategory.EXPERT)
-    public static final OptionKey<Integer> InliningExpansionBudget = new OptionKey<>(60_000);
+    public static final OptionKey<Integer> InliningExpansionBudget = new OptionKey<>(30_000);
 
     @Option(help = "The base inlining budget for language-agnostic inlining", category = OptionCategory.EXPERT)
-    public static final OptionKey<Integer> InliningInliningBudget = new OptionKey<>(60_000);
+    public static final OptionKey<Integer> InliningInliningBudget = new OptionKey<>(30_000);
 
     // @formatter:on
 

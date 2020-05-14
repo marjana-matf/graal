@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.Exclu
 import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.InlineAcrossTruffleBoundary;
 import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.IterativePartialEscape;
 import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.LanguageAgnosticInlining;
+import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.MaximumGraalNodeCount;
 import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.NodeSourcePositions;
 import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.PrintExpansionHistogram;
 import static org.graalvm.compiler.truffle.options.PolyglotCompilerOptions.TracePerformanceWarnings;
@@ -53,9 +54,11 @@ import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.EncodedGraph;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.StructuredGraph.AllowAssumptions;
+import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.FloatingNode;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration.Plugins;
+import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderTool;
 import org.graalvm.compiler.nodes.graphbuilderconf.InlineInvokePlugin;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugins;
@@ -84,8 +87,6 @@ import org.graalvm.compiler.truffle.common.TruffleCompilerRuntime.InlineKind;
 import org.graalvm.compiler.truffle.common.TruffleInliningPlan;
 import org.graalvm.compiler.truffle.common.TruffleSourceLanguagePosition;
 import org.graalvm.compiler.truffle.compiler.debug.HistogramInlineInvokePlugin;
-import org.graalvm.compiler.truffle.compiler.nodes.InlineDecisionInjectNode;
-import org.graalvm.compiler.truffle.compiler.nodes.InlineDecisionNode;
 import org.graalvm.compiler.truffle.compiler.nodes.asserts.NeverPartOfCompilationNode;
 import org.graalvm.compiler.truffle.compiler.nodes.frame.AllowMaterializeNode;
 import org.graalvm.compiler.truffle.compiler.phases.DeoptimizeOnExceptionPhase;
@@ -119,7 +120,6 @@ public abstract class PartialEvaluator {
     private final SnippetReflectionProvider snippetReflection;
     final ResolvedJavaMethod callDirectMethod;
     protected final ResolvedJavaMethod callInlined;
-    protected final ResolvedJavaMethod inlinedPERoot;
     final ResolvedJavaMethod callIndirectMethod;
     private final ResolvedJavaMethod profiledPERoot;
     private final GraphBuilderConfiguration configPrototype;
@@ -155,9 +155,8 @@ public abstract class PartialEvaluator {
         final MetaAccessProvider metaAccess = providers.getMetaAccess();
         ResolvedJavaType type = runtime.resolveType(metaAccess, "org.graalvm.compiler.truffle.runtime.OptimizedCallTarget");
         ResolvedJavaMethod[] methods = type.getDeclaredMethods();
-        this.callDirectMethod = findRequiredMethod(type, methods, "callDirectOrInlined", "(Lcom/oracle/truffle/api/nodes/Node;[Ljava/lang/Object;)Ljava/lang/Object;");
+        this.callDirectMethod = findRequiredMethod(type, methods, "callDirect", "(Lcom/oracle/truffle/api/nodes/Node;[Ljava/lang/Object;)Ljava/lang/Object;");
         this.callInlined = findRequiredMethod(type, methods, "callInlined", "(Lcom/oracle/truffle/api/nodes/Node;[Ljava/lang/Object;)Ljava/lang/Object;");
-        this.inlinedPERoot = findRequiredMethod(type, methods, "inlinedPERoot", "([Ljava/lang/Object;)Ljava/lang/Object;");
         this.callIndirectMethod = findRequiredMethod(type, methods, "callIndirect", "(Lcom/oracle/truffle/api/nodes/Node;[Ljava/lang/Object;)Ljava/lang/Object;");
         this.profiledPERoot = findRequiredMethod(type, methods, "profiledPERoot", "([Ljava/lang/Object;)Ljava/lang/Object;");
         this.callBoundary = findRequiredMethod(type, methods, "callBoundary", "([Ljava/lang/Object;)Ljava/lang/Object;");
@@ -205,7 +204,7 @@ public abstract class PartialEvaluator {
         throw new NoSuchMethodError(declaringClass.toJavaName() + "." + name + descriptor);
     }
 
-    static InlineInvokePlugin.InlineInfo asInlineInfo(ResolvedJavaMethod method) {
+    public static InlineInvokePlugin.InlineInfo asInlineInfo(ResolvedJavaMethod method) {
         final TruffleCompilerRuntime.InlineKind inlineKind = TruffleCompilerRuntime.getRuntime().getInlineKind(method, true);
         switch (inlineKind) {
             case DO_NOT_INLINE_DEOPTIMIZE_ON_EXCEPTION:
@@ -219,15 +218,6 @@ public abstract class PartialEvaluator {
                 return InlineInvokePlugin.InlineInfo.createStandardInlineInfo(method);
             default:
                 throw new IllegalArgumentException(String.valueOf(inlineKind));
-        }
-    }
-
-    private static void removeInlineTokenNodes(StructuredGraph graph) {
-        for (InlineDecisionNode node : graph.getNodes(InlineDecisionNode.TYPE)) {
-            node.notInlined();
-        }
-        for (InlineDecisionInjectNode node : graph.getNodes(InlineDecisionInjectNode.TYPE)) {
-            node.resolve();
         }
     }
 
@@ -264,11 +254,19 @@ public abstract class PartialEvaluator {
     }
 
     public ResolvedJavaMethod[] getCompilationRootMethods() {
-        return new ResolvedJavaMethod[]{profiledPERoot, callInlined, inlinedPERoot};
+        return new ResolvedJavaMethod[]{profiledPERoot, callInlined, callDirectMethod};
     }
 
     public ResolvedJavaMethod[] getNeverInlineMethods() {
-        return new ResolvedJavaMethod[]{callDirectMethod, callIndirectMethod, inlinedPERoot};
+        return new ResolvedJavaMethod[]{callDirectMethod, callIndirectMethod};
+    }
+
+    public ResolvedJavaMethod getCallDirect() {
+        return callDirectMethod;
+    }
+
+    public ResolvedJavaMethod getCallInlined() {
+        return callInlined;
     }
 
     public final class Request {
@@ -418,7 +416,7 @@ public abstract class PartialEvaluator {
      * @param compilable the Truffle AST being compiled.
      */
     public ResolvedJavaMethod inlineRootForCallTarget(CompilableTruffleAST compilable) {
-        return inlinedPERoot;
+        return callInlined;
     }
 
     private class InterceptReceiverPlugin implements ParameterPlugin {
@@ -502,7 +500,7 @@ public abstract class PartialEvaluator {
         Providers compilationUnitProviders = providers.copyWith(new TruffleConstantFieldProvider(providers.getConstantFieldProvider(), providers.getMetaAccess()));
         return new CachingPEGraphDecoder(architecture, request.graph, compilationUnitProviders, newConfig, TruffleCompilerImpl.Optimizations,
                         AllowAssumptions.ifNonNull(request.graph.getAssumptions()),
-                        loopExplosionPlugin, decodingInvocationPlugins, inlineInvokePlugins, parameterPlugin, nodePluginList, callInlined, inlinedPERoot,
+                        loopExplosionPlugin, decodingInvocationPlugins, inlineInvokePlugins, parameterPlugin, nodePluginList, callInlined,
                         sourceLanguagePositionProvider, postParsingPhase, graphCache);
     }
 
@@ -513,12 +511,13 @@ public abstract class PartialEvaluator {
         ReplacementsImpl replacements = (ReplacementsImpl) providers.getReplacements();
         InlineInvokePlugin[] inlineInvokePlugins;
         HistogramInlineInvokePlugin histogramPlugin = null;
+        NodeLimitControlPlugin nodeLimitControlPlugin = new NodeLimitControlPlugin(request.options.get(MaximumGraalNodeCount));
         Boolean printTruffleExpansionHistogram = getPolyglotOptionValue(request.options, PrintExpansionHistogram);
         if (printTruffleExpansionHistogram) {
             histogramPlugin = new HistogramInlineInvokePlugin(request.graph);
-            inlineInvokePlugins = new InlineInvokePlugin[]{replacements, inlineInvokePlugin, histogramPlugin};
+            inlineInvokePlugins = new InlineInvokePlugin[]{replacements, nodeLimitControlPlugin, inlineInvokePlugin, histogramPlugin};
         } else {
-            inlineInvokePlugins = new InlineInvokePlugin[]{replacements, inlineInvokePlugin};
+            inlineInvokePlugins = new InlineInvokePlugin[]{replacements, nodeLimitControlPlugin, inlineInvokePlugin};
         }
 
         SourceLanguagePositionProvider sourceLanguagePosition = new TruffleSourceLanguagePositionProvider(request.inliningPlan);
@@ -570,7 +569,6 @@ public abstract class PartialEvaluator {
                 final PEInliningPlanInvokePlugin plugin = new PEInliningPlanInvokePlugin(this, request.options, request.compilable, request.inliningPlan, request.graph);
                 doGraphPE(request, plugin, EconomicMap.create());
             }
-            removeInlineTokenNodes(request.graph);
         }
         request.debug.dump(DebugContext.BASIC_LEVEL, request.graph, "After Partial Evaluation");
         request.graph.maybeCompress();
@@ -627,6 +625,25 @@ public abstract class PartialEvaluator {
         @Override
         public String getLanguage() {
             return delegate.getLanguage();
+        }
+    }
+
+    private static final class NodeLimitControlPlugin implements InlineInvokePlugin {
+
+        NodeLimitControlPlugin(int nodeLimit) {
+            this.nodeLimit = nodeLimit;
+        }
+
+        private final int nodeLimit;
+
+        @Override
+        public InlineInfo shouldInlineInvoke(GraphBuilderContext b, ResolvedJavaMethod method, ValueNode[] args) {
+            final StructuredGraph graph = b.getGraph();
+            if (graph.getNodeCount() > nodeLimit) {
+                throw b.bailout("Graph too big to safely compile. Node count: " + graph.getNodeCount() + ". Limit: " + nodeLimit);
+            }
+            // Continue onto other plugins.
+            return null;
         }
     }
 }

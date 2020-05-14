@@ -43,6 +43,7 @@ from __future__ import print_function
 from abc import ABCMeta
 
 import mx
+import mx_javamodules
 import mx_subst
 import os
 import shutil
@@ -111,6 +112,22 @@ class AbstractNativeImageConfig(_with_metaclass(ABCMeta, object)):
 
     def __repr__(self):
         return str(self)
+
+    @staticmethod
+    def get_add_exports_list(required_exports, custom_target_module_str=None):
+        add_exports = []
+        for required in required_exports:
+            target_modules = required_exports[required]
+            target_modules_str = custom_target_module_str or ','.join(sorted(target_module.name for target_module in target_modules))
+            required_module_name, required_package_name = required
+            add_exports.append('--add-exports=' + required_module_name + '/' + required_package_name + "=" + target_modules_str)
+        return sorted(add_exports)
+
+    def get_add_exports(self):
+        distributions = self.jar_distributions
+        distributions_transitive = mx.classpath_entries(distributions)
+        required_exports = mx_javamodules.requiredExports(distributions_transitive, base_jdk())
+        return ' '.join(AbstractNativeImageConfig.get_add_exports_list(required_exports))
 
 
 class LauncherConfig(AbstractNativeImageConfig):
@@ -708,13 +725,6 @@ grant codeBase "jrt:/com.oracle.graal.graal_enterprise" {
                 lib_path = join(lib_directory, f)
                 if isfile(lib_path):
                     shutil.copy2(lib_path, dst_lib_directory)
-
-        # Build the list of modules whose classes might have annotations
-        # to be processed by native-image (GR-15192).
-        with open(join(dst_jdk_dir, 'lib', 'native-image-modules.list'), 'w') as fp:
-            print('# Modules whose classes might have annotations processed by native-image', file=fp)
-            for m in modules:
-                print(m.name, file=fp)
 
     finally:
         if not mx.get_opts().verbose:

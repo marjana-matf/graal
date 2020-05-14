@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -335,7 +335,7 @@ public class CanonicalizerPhase extends BasePhase<CoreProviders> {
                 if (constant != null && !(node instanceof ConstantNode)) {
                     ConstantNode stampConstant = ConstantNode.forConstant(valueNode.stamp(NodeView.DEFAULT), constant, context.getMetaAccess(), graph);
                     debug.log("Canonicalizer: constant stamp replaces %1s with %1s", valueNode, stampConstant);
-                    valueNode.replaceAtUsages(InputType.Value, stampConstant);
+                    valueNode.replaceAtUsages(stampConstant, InputType.Value);
                     GraphUtil.tryKillUnused(valueNode);
                     return true;
                 } else if (improvedStamp) {

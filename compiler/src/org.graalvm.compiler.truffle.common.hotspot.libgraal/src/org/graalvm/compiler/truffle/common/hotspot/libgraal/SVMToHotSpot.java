@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,6 +79,7 @@ public @interface SVMToHotSpot {
         GetCallCount(int.class, TruffleCallNode.class),
         GetCallNodes(TruffleCallNode[].class, CompilableTruffleAST.class),
         GetCallTargetForCallNode(long.class, HotSpotTruffleCompilerRuntime.class, long.class),
+        GetClassName(String.class, Class.class),
         GetCompilableCallCount(int.class, CompilableTruffleAST.class),
         GetCompilableName(String.class, CompilableTruffleAST.class),
         GetConstantFieldInfo(int.class, HotSpotTruffleCompilerRuntime.class, long.class, boolean.class, int.class),
@@ -94,6 +95,7 @@ public @interface SVMToHotSpot {
         GetLineNumber(int.class, TruffleSourceLanguagePosition.class),
         GetLoopExplosionKind(int.class, HotSpotTruffleCompilerRuntime.class, long.class),
         GetNodeRewritingAssumption(long.class, TruffleInliningPlan.Decision.class),
+        GetNodeRewritingAssumptionConstant(long.class, CompilableTruffleAST.class),
         GetNonTrivialNodeCount(int.class, CompilableTruffleAST.class),
         GetOffsetEnd(int.class, TruffleSourceLanguagePosition.class),
         GetOffsetStart(int.class, TruffleSourceLanguagePosition.class),

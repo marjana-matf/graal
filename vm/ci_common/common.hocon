@@ -231,11 +231,6 @@ weekly_vm_darwin: ${vm_darwin} {
   targets: [weekly]
 }
 
-non-product-vm-components: "nju,nic"
-non-product-vm-components-windows: ${non-product-vm-components}",llp"
-
-non-product-native-launchers: "RMain"
-
 mx_vm_common: [mx, --strip-jars, --no-sources, --with-debuginfo, --env, "${VM_ENV}", "--force-bash-launchers=env.FORCE_BASH_LAUNCHERS,"${non-product-native-launchers}]
 mx_vm_installables: ${mx_vm_common}
 maven_deploy_sdk_base: [--suite, sdk, maven-deploy, --validate, none, --all-distribution-types, "--tags=graalvm", --with-suite-revisions-metadata]
@@ -262,7 +257,7 @@ builds += [
       [mx, --env, ${libgraal_env}, "--extra-image-builder-argument=-J-esa", "--extra-image-builder-argument=-ea", build]
       [mx, --env, ${libgraal_env}, gate, --task, "LibGraal Compiler"]
     ]
-    timelimit: "45:00"
+    timelimit: "1:00:00"
     targets: [gate]
     name: gate-vm-libgraal-compiler
   }

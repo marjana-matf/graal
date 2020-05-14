@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,9 +46,16 @@ final class SVMToHotSpotEntryPoints {
     }
 
     /**
-     * @see Factory#signal(long)
+     * @see Factory#signalRegistrationRequest(long)
      */
-    static void signal(Factory factory, long isolate) {
-        factory.signal(isolate);
+    static void signalRegistrationRequest(Factory factory, long isolate) {
+        factory.signalRegistrationRequest(isolate);
+    }
+
+    /**
+     * @see Factory#unregister(long, java.lang.String[])
+     */
+    static void unregister(Factory factory, long isolate, String[] objectIds) {
+        factory.unregister(isolate, objectIds);
     }
 }

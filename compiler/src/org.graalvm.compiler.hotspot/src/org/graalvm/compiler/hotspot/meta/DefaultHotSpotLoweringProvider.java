@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -736,7 +736,9 @@ public abstract class DefaultHotSpotLoweringProvider extends DefaultJavaLowering
          * the debug info. The foreign call needs a stateDuring instead so it can deopt with a
          * pending exception.
          */
-        foreignCallNode.setStateAfter(node.createStateDuring());
+        foreignCallNode.setStateDuring(node.createStateDuring());
+        // Keep a proper stateAfter for use by FSA
+        foreignCallNode.setStateAfter(node.stateAfter());
         graph.replaceFixedWithFixed(node, foreignCallNode);
     }
 

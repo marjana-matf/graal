@@ -50,6 +50,7 @@ import com.oracle.svm.core.util.VMError;
 import com.oracle.svm.hosted.ExceptionSynthesizer;
 import com.oracle.svm.hosted.HostedConfiguration;
 import com.oracle.svm.hosted.NativeImageOptions;
+import com.oracle.svm.hosted.phases.NativeImageInlineDuringParsingPlugin;
 
 import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaField;
@@ -69,10 +70,17 @@ public abstract class SharedGraphBuilderPhase extends GraphBuilderPhase.Instance
         this.wordTypes = wordTypes;
     }
 
+    @Override
+    protected void run(StructuredGraph graph) {
+        super.run(graph);
+        assert wordTypes == null || wordTypes.ensureGraphContainsNoWordTypeReferences(graph);
+    }
+
     public abstract static class SharedBytecodeParser extends BytecodeParser {
 
         private final boolean explicitExceptionEdges;
         private final boolean allowIncompleteClassPath;
+        protected NativeImageInlineDuringParsingPlugin.InvocationResultInline inlineDuringParsingState;
 
         protected SharedBytecodeParser(GraphBuilderPhase.Instance graphBuilderInstance, StructuredGraph graph, BytecodeParser parent, ResolvedJavaMethod method, int entryBCI,
                         IntrinsicContext intrinsicContext, boolean explicitExceptionEdges) {
@@ -84,6 +92,10 @@ public abstract class SharedGraphBuilderPhase extends GraphBuilderPhase.Instance
             super(graphBuilderInstance, graph, parent, method, entryBCI, intrinsicContext);
             this.explicitExceptionEdges = explicitExceptionEdges;
             this.allowIncompleteClassPath = allowIncompleteClasspath;
+        }
+        
+        public GraphBuilderConfiguration getGraphBuilderConfig() {
+            return graphBuilderConfig;
         }
 
         @Override
@@ -106,6 +118,7 @@ public abstract class SharedGraphBuilderPhase extends GraphBuilderPhase.Instance
         protected JavaMethod lookupMethodInPool(int cpi, int opcode) {
             JavaMethod result = super.lookupMethodInPool(cpi, opcode);
             if (result == null) {
+                // detected null result for method zapValuesToLog
                 throw VMError.shouldNotReachHere("Discovered an unresolved calee while parsing " + method.asStackTraceElement(bci()) + '.');
             }
             return result;
@@ -126,7 +139,7 @@ public abstract class SharedGraphBuilderPhase extends GraphBuilderPhase.Instance
             try {
                 super.maybeEagerlyResolve(cpi, bytecode);
             } catch (UnresolvedElementException e) {
-                if (e.getCause() instanceof NoClassDefFoundError) {
+                if (e.getCause() instanceof NoClassDefFoundError || e.getCause() instanceof IllegalAccessError) {
                     /*
                      * Ignore NoClassDefFoundError if thrown from eager resolution attempt. This is
                      * usually followed by a call to ConstantPool.lookupType() which should return

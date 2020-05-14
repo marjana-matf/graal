@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -219,7 +219,7 @@ public class ConvertDeoptimizeToGuardPhase extends BasePhase<CoreProviders> {
                             if (survivingSuccessor instanceof LoopExitNode) {
                                 newGuard = ProxyNode.forGuard(guard, (LoopExitNode) survivingSuccessor);
                             }
-                            survivingSuccessor.replaceAtUsages(InputType.Guard, newGuard);
+                            survivingSuccessor.replaceAtUsages(newGuard, InputType.Guard);
 
                             graph.getDebug().log("Converting deopt on %-5s branch of %s to guard for remaining branch %s.", negateGuardCondition, ifNode, survivingSuccessor);
                             FixedNode next = pred.next();

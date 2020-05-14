@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
  */
 package org.graalvm.compiler.truffle.compiler.hotspot.libgraal;
 
-import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.runtime;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.AsJavaConstant;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.CancelInstalledTask;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.CompilableToString;
@@ -34,6 +33,7 @@ import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.GetCompilableName;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.GetFailedSpeculationsAddress;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.GetKnownCallSiteCount;
+import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.GetNodeRewritingAssumptionConstant;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.IsSameOrSplit;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.GetNonTrivialNodeCount;
 import static org.graalvm.compiler.truffle.common.hotspot.libgraal.SVMToHotSpot.Id.OnCompilationFailed;
@@ -46,6 +46,7 @@ import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilabl
 import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilableTruffleASTGen.callGetCompilableName;
 import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilableTruffleASTGen.callGetFailedSpeculationsAddress;
 import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilableTruffleASTGen.callGetKnownCallSiteCount;
+import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilableTruffleASTGen.callGetNodeRewritingAssumptionConstant;
 import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilableTruffleASTGen.callGetNonTrivialNodeCount;
 import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilableTruffleASTGen.callIsSameOrSplit;
 import static org.graalvm.compiler.truffle.compiler.hotspot.libgraal.HSCompilableTruffleASTGen.callOnCompilationFailed;
@@ -118,26 +119,33 @@ final class HSCompilableTruffleAST extends HSObject implements CompilableTruffle
         return HotSpotGraalServices.newHotSpotSpeculationLog(cachedFailedSpeculationsAddress);
     }
 
+    @SVMToHotSpot(GetNodeRewritingAssumptionConstant)
+    @Override
+    public JavaConstant getNodeRewritingAssumptionConstant() {
+        long javaConstantHandle = callGetNodeRewritingAssumptionConstant(env(), getHandle());
+        return LibGraal.unhand(JavaConstant.class, javaConstantHandle);
+    }
+
     @SVMToHotSpot(AsJavaConstant)
     @Override
     public JavaConstant asJavaConstant() {
-        return LibGraal.unhand(runtime(), JavaConstant.class, callAsJavaConstant(env(), getHandle()));
+        return LibGraal.unhand(JavaConstant.class, callAsJavaConstant(env(), getHandle()));
     }
 
     @SVMToHotSpot(CreateStringSupplier)
     @SVMToHotSpot(OnCompilationFailed)
     @Override
-    public void onCompilationFailed(Supplier<String> reasonAndStackTrace, boolean bailout, boolean permanentBailout) {
-        long reasonAndStackTraceHandle = SVMObjectHandles.create(reasonAndStackTrace);
+    public void onCompilationFailed(Supplier<String> serializedException, boolean bailout, boolean permanentBailout) {
+        long serializedExceptionHandle = SVMObjectHandles.create(serializedException);
         boolean success = false;
         JNIEnv env = env();
         try {
-            JObject instance = callCreateStringSupplier(env, reasonAndStackTraceHandle);
+            JObject instance = callCreateStringSupplier(env, serializedExceptionHandle);
             callOnCompilationFailed(env, getHandle(), instance, bailout, permanentBailout);
             success = true;
         } finally {
             if (!success) {
-                SVMObjectHandles.remove(reasonAndStackTraceHandle);
+                SVMObjectHandles.remove(serializedExceptionHandle);
             }
         }
     }

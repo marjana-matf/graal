@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -178,8 +178,7 @@ public class ConditionalEliminationPhase extends BasePhase<CoreProviders> {
             AbstractBeginNode beginNode = b.getBeginNode();
             if (beginNode instanceof AbstractMergeNode && anchorBlock != b) {
                 AbstractMergeNode mergeNode = (AbstractMergeNode) beginNode;
-                mergeNode.replaceAtUsages(InputType.Anchor, anchorBlock.getBeginNode());
-                mergeNode.replaceAtUsages(InputType.Guard, anchorBlock.getBeginNode());
+                mergeNode.replaceAtUsages(anchorBlock.getBeginNode(), InputType.Anchor, InputType.Guard);
                 assert mergeNode.anchored().isEmpty();
             }
 
@@ -431,7 +430,7 @@ public class ConditionalEliminationPhase extends BasePhase<CoreProviders> {
             tryProveGuardCondition(null, node.condition(), (guard, result, guardedValueStamp, newInput) -> {
                 node.setCondition(LogicConstantNode.forBoolean(result, node.graph()));
                 AbstractBeginNode survivingSuccessor = node.getSuccessor(result);
-                survivingSuccessor.replaceAtUsages(InputType.Guard, guard.asNode());
+                survivingSuccessor.replaceAtUsages(guard.asNode(), InputType.Guard);
                 // Don't kill the other branch immediately, see `processGuard`.
                 counterIfsKilled.increment(debug);
                 return true;

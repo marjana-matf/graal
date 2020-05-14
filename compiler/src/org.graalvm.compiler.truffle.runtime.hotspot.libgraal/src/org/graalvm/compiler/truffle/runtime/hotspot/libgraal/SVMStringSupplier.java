@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,12 @@ import static org.graalvm.libgraal.LibGraalScope.getIsolateThread;
 
 import java.util.function.Supplier;
 
+import org.graalvm.libgraal.LibGraalObject;
+
 /**
  * Encapsulates a handle to a {@link Supplier} object in the SVM heap.
  */
-final class SVMStringSupplier extends SVMObject implements Supplier<String> {
+final class SVMStringSupplier extends LibGraalObject implements Supplier<String> {
 
     SVMStringSupplier(long handle) {
         super(handle);
@@ -39,6 +41,6 @@ final class SVMStringSupplier extends SVMObject implements Supplier<String> {
 
     @Override
     public String get() {
-        return HotSpotToSVMCalls.getSuppliedString(getIsolateThread(), handle);
+        return HotSpotToSVMCalls.getSuppliedString(getIsolateThread(), getHandle());
     }
 }

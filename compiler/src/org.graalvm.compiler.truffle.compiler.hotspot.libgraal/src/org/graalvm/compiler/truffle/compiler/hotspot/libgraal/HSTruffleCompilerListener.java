@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,10 +90,10 @@ final class HSTruffleCompilerListener extends HSObject implements TruffleCompile
 
     @SVMToHotSpot(OnFailure)
     @Override
-    public void onFailure(CompilableTruffleAST compilable, String reason, boolean bailout, boolean permanentBailout) {
+    public void onFailure(CompilableTruffleAST compilable, String serializedException, boolean bailout, boolean permanentBailout) {
         JObject hsCompilable = ((HSCompilableTruffleAST) compilable).getHandle();
         JNIEnv env = HotSpotToSVMScope.env();
-        JString hsReason = createHSString(env, reason);
+        JString hsReason = createHSString(env, serializedException);
         callOnFailure(env, getHandle(), hsCompilable, hsReason, bailout, permanentBailout);
     }
 

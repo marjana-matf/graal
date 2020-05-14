@@ -61,7 +61,6 @@ suite = {
                 "version" : "2.6.2-jaxb-1.0.6",
            },
         },
-
         "LLVM_WRAPPER_SHADOWED": {
             "sha1" : "f2d365a8d432d6b2127acda19c5d3418126db9b0",
             "sourceSha1" : "0801daf22b189bbd9d515614a2b79c92af225d56",
@@ -485,6 +484,9 @@ suite = {
                     },
                 },
             },
+            "dependencies": [
+                "svm-jvmfuncs-fallback-builder",
+            ],
         },
 
         "com.oracle.svm.native.jvm.windows": {
@@ -504,6 +506,13 @@ suite = {
                     },
                 },
             },
+            "dependencies": [
+                "svm-jvmfuncs-fallback-builder",
+            ],
+        },
+
+        "svm-jvmfuncs-fallback-builder": {
+            "class" : "SubstrateJvmFuncsFallbacksBuilder",
         },
 
         "com.oracle.svm.jni": {
@@ -538,6 +547,13 @@ suite = {
             ],
             "javaCompliance": "8+",
             "spotbugs": "false",
+        },
+
+        "svm-compiler-flags-builder": {
+            "class" : "SubstrateCompilerFlagsBuilder",
+            "dependencies" : [
+                "SVM",
+            ],
         },
 
         "com.oracle.svm.junit": {
@@ -1026,6 +1042,7 @@ suite = {
             "mainClass": "com.oracle.svm.driver.NativeImage",
             "dependencies": [
                 "com.oracle.svm.driver",
+                "svm-compiler-flags-builder",
             ],
             "distDependencies": [
                 "LIBRARY_SUPPORT",

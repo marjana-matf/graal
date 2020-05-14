@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 package org.graalvm.libgraal.jni;
 
 import org.graalvm.compiler.debug.TTY;
+import org.graalvm.compiler.serviceprovider.IsolateUtil;
 import org.graalvm.libgraal.jni.JNI.JArray;
 import org.graalvm.libgraal.jni.JNI.JByteArray;
 import org.graalvm.libgraal.jni.JNI.JClass;
@@ -92,6 +93,11 @@ public final class JNIUtil {
     public static JMethodID GetMethodID(JNIEnv env, JClass clazz, CCharPointer name, CCharPointer sig) {
         traceJNI("GetMethodID");
         return env.getFunctions().getGetMethodID().call(env, clazz, name, sig);
+    }
+
+    public static JNI.JFieldID GetStaticFieldID(JNIEnv env, JClass clazz, CCharPointer name, CCharPointer sig) {
+        traceJNI("GetStaticFieldID");
+        return env.getFunctions().getGetStaticFieldID().call(env, clazz, name, sig);
     }
 
     public static JObjectArray NewObjectArray(JNIEnv env, int len, JClass componentClass, JObject initialElement) {
@@ -302,7 +308,8 @@ public final class JNIUtil {
         if (traceLevel() >= level) {
             HotSpotToSVMScope<?> scope = HotSpotToSVMScope.scopeOrNull();
             String indent = scope == null ? "" : new String(new char[2 + (scope.depth() * 2)]).replace('\0', ' ');
-            TTY.printf(indent + format + "%n", args);
+            String prefix = "[" + IsolateUtil.getIsolateID() + ":" + Thread.currentThread().getName() + "]";
+            TTY.printf(prefix + indent + format + "%n", args);
         }
     }
 }

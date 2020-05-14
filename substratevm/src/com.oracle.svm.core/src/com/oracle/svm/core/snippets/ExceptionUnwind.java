@@ -24,6 +24,7 @@
  */
 package com.oracle.svm.core.snippets;
 
+import org.graalvm.nativeimage.CurrentIsolate;
 import org.graalvm.nativeimage.ImageSingletons;
 import org.graalvm.nativeimage.LogHandler;
 import org.graalvm.nativeimage.StackValue;
@@ -171,6 +172,7 @@ public abstract class ExceptionUnwind {
      */
     private static void reportUnhandledException(Throwable exception) {
         Log.log().exception(exception);
+        Log.log().string("Isolate: 0X").hex(CurrentIsolate.getIsolate()).newline();
         ImageSingletons.lookup(LogHandler.class).fatalError();
     }
 
@@ -199,7 +201,7 @@ public abstract class ExceptionUnwind {
             if (deoptFrame == null) {
                 UntetheredCodeInfo untetheredInfo = walk.getIPCodeInfo();
                 if (untetheredInfo.isNull()) {
-                    JavaStackWalker.reportUnknownFrameEncountered(walk, sp, deoptFrame);
+                    JavaStackWalker.reportUnknownFrameEncountered(sp, ip, deoptFrame);
                     return; /* Unreachable code. */
                 }
 

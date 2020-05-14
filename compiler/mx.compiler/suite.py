@@ -730,6 +730,7 @@ suite = {
       "sourceDirs" : ["src"],
       "dependencies" : [
         "org.graalvm.libgraal",
+        "org.graalvm.compiler.hotspot.management.libgraal",
         "org.graalvm.compiler.replacements.test",
         "org.graalvm.compiler.hotspot",
       ],
@@ -759,6 +760,24 @@ suite = {
       "javaCompliance" : "9+",
       "workingSets" : "Graal,HotSpot,Test",
     },
+
+    "org.graalvm.compiler.hotspot.jdk15.test" : {
+      "testProject" : True,
+      "subDir" : "src",
+      "sourceDirs" : ["src"],
+      "dependencies" : [
+        "org.graalvm.compiler.replacements.test",
+      ],
+      "requiresConcealed" : {
+        "jdk.internal.vm.ci" : [
+          "jdk.vm.ci.meta",
+        ],
+      },
+      "checkstyle": "org.graalvm.compiler.graph",
+      "javaCompliance" : "15+",
+      "workingSets" : "Graal,HotSpot,Test",
+    },
+
 
     "org.graalvm.compiler.hotspot.lir.test" : {
       "subDir" : "src",
@@ -2121,6 +2140,8 @@ suite = {
         "org.graalvm.compiler.hotspot.amd64.test",
         "org.graalvm.compiler.hotspot.lir.test",
         "org.graalvm.compiler.hotspot.sparc.test",
+        "org.graalvm.compiler.hotspot.jdk15.test",
+        "org.graalvm.compiler.hotspot.jdk9.test",
         "org.graalvm.compiler.options.test",
         "org.graalvm.compiler.jtt",
         "org.graalvm.compiler.lir.jtt",
@@ -2139,6 +2160,9 @@ suite = {
       "distDependencies" : [
         "JVMCI_HOTSPOT",
         "GRAAL",
+        "GRAAL_LIBGRAAL_JNI",
+        "GRAAL_MANAGEMENT",
+        "GRAAL_MANAGEMENT_LIBGRAAL",
         "truffle:TRUFFLE_SL_TEST",
         "truffle:TRUFFLE_TEST",
       ],

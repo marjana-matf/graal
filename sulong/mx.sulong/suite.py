@@ -463,6 +463,7 @@ suite = {
       "variants" : ["O0"],
       "buildDependencies" : [
         "LLIR_TEST_GEN",
+        "SULONG_HOME",
       ],
       "buildEnv" : {
         "LDFLAGS": "-lm",
@@ -504,6 +505,7 @@ suite = {
       ],
       "headers" : [
         "include/polyglot.h",
+        "include/llvm/api/toolchain.h",
       ],
       "buildDependencies" : [
         "sdk:LLVM_TOOLCHAIN",
